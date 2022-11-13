@@ -9,10 +9,12 @@ from torch import nn
 import torch.nn.functional as F
 from torch import autograd
 from torch.utils import tensorboard
+from torchvision.models import resnet50, ResNet50_Weights
 
 import omniglot
 import util
 import sys
+import random
 
 NUM_INPUT_CHANNELS = 1
 NUM_HIDDEN_CHANNELS = 64
@@ -65,35 +67,61 @@ class MAML:
         # construct feature extractor
         in_channels = NUM_INPUT_CHANNELS
         for i in range(NUM_CONV_LAYERS):
-            meta_parameters[f'conv{i}'] = nn.init.xavier_uniform_(
-                torch.empty(
-                    NUM_HIDDEN_CHANNELS,
-                    in_channels,
-                    KERNEL_SIZE,
-                    KERNEL_SIZE,
-                    requires_grad=True,
-                    device=DEVICE
+            if i == NUM_CONV_LAYERS - 1:
+                meta_parameters[f'conv{i}'] = nn.init.xavier_uniform_(
+                    torch.empty(
+                        3,
+                        in_channels,
+                        KERNEL_SIZE,
+                        KERNEL_SIZE,
+                        requires_grad=True,
+                        device=DEVICE
+                    )
                 )
-            )
-            meta_parameters[f'b{i}'] = nn.init.zeros_(
-                torch.empty(
-                    NUM_HIDDEN_CHANNELS,
-                    requires_grad=True,
-                    device=DEVICE
+                meta_parameters[f'b{i}'] = nn.init.zeros_(
+                    torch.empty(
+                        3,
+                        requires_grad=True,
+                        device=DEVICE
+                    )
                 )
-            )
-            in_channels = NUM_HIDDEN_CHANNELS
+                in_channels = NUM_HIDDEN_CHANNELS
+            else:
+                meta_parameters[f'conv{i}'] = nn.init.xavier_uniform_(
+                    torch.empty(
+                        NUM_HIDDEN_CHANNELS,
+                        in_channels,
+                        KERNEL_SIZE,
+                        KERNEL_SIZE,
+                        requires_grad=True,
+                        device=DEVICE
+                    )
+                )
+                meta_parameters[f'b{i}'] = nn.init.zeros_(
+                    torch.empty(
+                        NUM_HIDDEN_CHANNELS,
+                        requires_grad=True,
+                        device=DEVICE
+                    )
+                )
+                in_channels = NUM_HIDDEN_CHANNELS
+
+        # make resnet pretrained feature extraction and freeze
+        self.resnet_model =nn.Sequential(*list(resnet50(weights=ResNet50_Weights.IMAGENET1K_V2).children())[:-2])
+        for param in self.resnet_model.parameters():
+            param.requires_grad = False
 
         # construct linear head layer
-        meta_parameters[f'w{NUM_CONV_LAYERS}'] = nn.init.xavier_uniform_(
+        self.linear_head_param = {}
+        self.linear_head_param[f'w{NUM_CONV_LAYERS}'] = nn.init.xavier_uniform_(
             torch.empty(
                 num_outputs,
-                NUM_HIDDEN_CHANNELS,
+                2048, # figure out shape of this 
                 requires_grad=True,
                 device=DEVICE
             )
         )
-        meta_parameters[f'b{NUM_CONV_LAYERS}'] = nn.init.zeros_(
+        self.linear_head_param[f'b{NUM_CONV_LAYERS}'] = nn.init.zeros_(
             torch.empty(
                 num_outputs,
                 requires_grad=True,
@@ -103,10 +131,12 @@ class MAML:
 
         self._meta_parameters = meta_parameters
         self._num_inner_steps = num_inner_steps
+
         self._inner_lrs = {
             k: torch.tensor(inner_lr, requires_grad=learn_inner_lrs)
-            for k in self._meta_parameters.keys()
+            for k in self.linear_head_param.keys()
         }
+        
         self._outer_lr = outer_lr
 
         self._optimizer = torch.optim.Adam(
@@ -134,6 +164,8 @@ class MAML:
         """
         x = images
         for i in range(NUM_CONV_LAYERS):
+            # inject noise into the layers randomly
+
             x = F.conv2d(
                 input=x,
                 weight=parameters[f'conv{i}'],
@@ -141,14 +173,26 @@ class MAML:
                 stride=1,
                 padding='same'
             )
+            if random.uniform(0,1) < 0.3:
+                x += nn.init.xavier_uniform_(
+                torch.empty(
+                    images.size(0),
+                    parameters[f'conv{i}'].size(0),
+                    images.size(2),
+                    images.size(3),
+                    requires_grad=False,
+                    device=DEVICE
+                )
+            )
             x = F.batch_norm(x, None, None, training=True)
             x = F.relu(x)
-        x = torch.mean(x, dim=[2, 3])
-        return F.linear(
-            input=x,
-            weight=parameters[f'w{NUM_CONV_LAYERS}'],
-            bias=parameters[f'b{NUM_CONV_LAYERS}']
-        )
+        # x = torch.mean(x, dim=[2, 3])
+        # return F.linear(
+        #     input=x,
+        #     weight=parameters[f'w{NUM_CONV_LAYERS}'],
+        #     bias=parameters[f'b{NUM_CONV_LAYERS}']
+        # )
+        return x
 
     def _inner_loop(self, images, labels, train):
         """Computes the adapted network parameters via the MAML inner loop.
@@ -166,35 +210,36 @@ class MAML:
                 the inner loop, length num_inner_steps + 1
         """
         accuracies = []
-        parameters = {
+        inner_parameters = {
             k: torch.clone(v)
-            for k, v in self._meta_parameters.items()
-        }
-        # ********************************************************
-        # ******************* YOUR CODE HERE *********************
-        # ********************************************************
-        # TODO: finish implementing this method.
-        # This method computes the inner loop (adaptation) procedure
-        # over the course of _num_inner_steps steps for one
-        # task. It also scores the model along the way.
-        # Make sure to populate accuracies and update parameters.
-        # Use F.cross_entropy to compute classification losses.
-        # Use util.score to compute accuracies.
+            for k, v in self.linear_head_param.items()
+        } 
 
         for i in range(self._num_inner_steps):
-            out = self._forward(images, parameters)
+            # run resnet on the convnet output
+            out = self.resnet_model(images).squeeze()
+            out = F.linear(
+                input = out,
+                weight = inner_parameters[f'w{NUM_CONV_LAYERS}'],
+                bias = inner_parameters[f'b{NUM_CONV_LAYERS}']
+            )
+            # get the loss from resnet output
             loss = F.cross_entropy(out, labels)
             accuracies.append(util.score(out, labels))
 
             d_loss = autograd.grad(outputs = loss, 
-                                    inputs = parameters.values(), 
+                                    inputs = inner_parameters.values(), 
                                     create_graph = train)
-            for i, k in enumerate(parameters.keys()):
-                parameters[k] -= self._inner_lrs[k]*d_loss[i]
-
+            for i, k in enumerate(inner_parameters.keys()):
+                inner_parameters[k] = inner_parameters[k] - self._inner_lrs[k]*d_loss[i]
 
         # last run on the fully adapted params
-        out = self._forward(images, parameters)
+        out = self.resnet_model(images).squeeze()
+        out = F.linear(
+                input = out,
+                weight = inner_parameters[f'w{NUM_CONV_LAYERS}'],
+                bias = inner_parameters[f'b{NUM_CONV_LAYERS}']
+            )
         accuracies.append(util.score(out, labels))
 
             
@@ -203,7 +248,7 @@ class MAML:
         # ********************************************************
         # ******************* YOUR CODE HERE *********************
         # ********************************************************
-        return parameters, accuracies
+        return inner_parameters, accuracies
 
     def _outer_step(self, task_batch, train):
         """Computes the MAML loss and metrics on a batch of tasks.
@@ -229,23 +274,24 @@ class MAML:
             labels_support = labels_support.to(DEVICE)
             images_query = images_query.to(DEVICE)
             labels_query = labels_query.to(DEVICE)
-            # ********************************************************
-            # ******************* YOUR CODE HERE *********************
-            # ********************************************************
-            # TODO: finish implementing this method.
-            # For a given task, use the _inner_loop method to adapt for
-            # _num_inner_steps steps, then compute the MAML loss and other
-            # metrics.
-            # Use F.cross_entropy to compute classification losses.
-            # Use util.score to compute accuracies.
-            # Make sure to populate outer_loss_batch, accuracies_support_batch,
-            # and accuracy_query_batch.
-            param, acc = self._inner_loop(images_support, labels_support, train)
+
+            # does the "augmentation"
+            support_out = self._forward(images_support, self._meta_parameters)
+
+            # run in inner loop for resnet feature extraction and meta training
+            param, acc = self._inner_loop(support_out, labels_support, train)
             accuracies_support_batch.append(acc)
 
-            out = self._forward(images_query, param)
-            loss = F.cross_entropy(out, labels_query)
-            accuracy_query_batch.append(util.score(out, labels_query))
+            query_out = self._forward(images_query, self._meta_parameters)
+            query_out = self.resnet_model(query_out).squeeze()
+            query_out = F.linear(
+                input = query_out,
+                weight = param[f'w{NUM_CONV_LAYERS}'],
+                bias = param[f'b{NUM_CONV_LAYERS}']
+            )
+
+            loss = F.cross_entropy(query_out, labels_query)
+            accuracy_query_batch.append(util.score(query_out, labels_query))
             outer_loss_batch.append(loss)
 
 
