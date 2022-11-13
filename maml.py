@@ -109,7 +109,7 @@ class MAML:
         # make resnet pretrained feature extraction and freeze
         self.resnet_model =nn.Sequential(*list(resnet50(weights=ResNet50_Weights.IMAGENET1K_V2).children())[:-2]).to(DEVICE)
         for param in self.resnet_model.parameters():
-            param.requires_grad = False
+            param.requires_grad = True
 
         # construct linear head layer
         self.linear_head_param = {}
@@ -173,8 +173,8 @@ class MAML:
                 stride=1,
                 padding='same'
             )
-            if random.uniform(0,1) < 0.2:
-                x += nn.init.xavier_normal_(
+            if random.uniform(0,1) < 0.5:
+                x += nn.init.normal_(
                 torch.empty(
                     images.size(0),
                     parameters[f'conv{i}'].size(0),
@@ -182,7 +182,9 @@ class MAML:
                     images.size(3),
                     requires_grad=False,
                     device=DEVICE
-                )
+                ),
+                mean = torch.mean(x),
+                std = torch.std(x)
             )
             x = F.batch_norm(x, None, None, training=True)
             x = F.relu(x)
