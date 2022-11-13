@@ -107,8 +107,9 @@ class MAML:
                 in_channels = NUM_HIDDEN_CHANNELS
 
         # make resnet pretrained feature extraction and freeze
-        self.resnet_model =nn.Sequential(*list(resnet50(weights=ResNet50_Weights.IMAGENET1K_V2).children())[:-2]).to(DEVICE)
-        self.resnet_model.conv1.in_channels = NUM_INPUT_CHANNELS
+        temp = resnet50(weights=ResNet50_Weights.IMAGENET1K_V2).children()
+        temp.conv1.in_channels = NUM_INPUT_CHANNELS
+        self.resnet_model =nn.Sequential(*list(temp.children())[:-2]).to(DEVICE)
         for param in self.resnet_model.parameters():
             param.requires_grad = True
 
