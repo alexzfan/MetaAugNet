@@ -1,5 +1,9 @@
 """Implementation of model-agnostic meta-learning for Omniglot."""
 
+# TO RUN 
+# python maml.py --num_way 5 --num_support 4 --num_inner_steps 1 --batch_size 8
+
+
 import argparse
 import os
 
@@ -10,6 +14,7 @@ import torch.nn.functional as F
 from torch import autograd
 from torch.utils import tensorboard
 from torchvision.models import resnet50, ResNet50_Weights
+import torchvision.transforms as transforms
 
 import omniglot
 import util
@@ -250,7 +255,7 @@ class MAML:
         # ********************************************************
         return inner_parameters, accuracies
 
-    def _outer_step(self, task_batch, train):
+    def _outer_step(self, task_batch, train, aug_type):
         """Computes the MAML loss and metrics on a batch of tasks.
 
         Args:
@@ -276,7 +281,23 @@ class MAML:
             labels_query = labels_query.to(DEVICE)
 
             # does the "augmentation"
-            support_out = self._forward(images_support, self._meta_parameters)
+            # TO DEBUG
+            import pdb
+            pdb.set_trace()
+            if aug_type == 'learned':
+                support_out = self._forward(images_support, self._meta_parameters)
+            elif aug_type == 'random_crop_flip':
+                random_crop_flip = transforms.Compose([transforms.RandomCrop(32, padding=4),transforms.RandomHorizontalFlip()])
+                support_out = random_crop_flip(images_support)
+            elif aug_type == 'AutoAugment':
+                augmenter = transforms.AutoAugment(transforms.AutoAugmentPolicy.CIFAR10)
+                support_out = augmenter(images_support)
+            else:
+                raise ValueError ("Not a valid augmentation_type")
+
+            
+            # Print example augmentation
+
 
             # run in inner loop for resnet feature extraction and meta training
             param, acc = self._inner_loop(support_out, labels_support, train)
@@ -293,8 +314,6 @@ class MAML:
             loss = F.cross_entropy(query_out, labels_query)
             accuracy_query_batch.append(util.score(query_out, labels_query))
             outer_loss_batch.append(loss)
-
-
 
 
             # ********************************************************
@@ -327,7 +346,7 @@ class MAML:
         ):
             self._optimizer.zero_grad()
             outer_loss, accuracies_support, accuracy_query = (
-                self._outer_step(task_batch, train=True)
+                self._outer_step(task_batch, train=True, aug_type='learned')
             )
             outer_loss.backward()
             self._optimizer.step()
@@ -367,7 +386,7 @@ class MAML:
                 accuracies_post_adapt_query = []
                 for val_task_batch in dataloader_val:
                     outer_loss, accuracies_support, accuracy_query = (
-                        self._outer_step(val_task_batch, train=False)
+                        self._outer_step(val_task_batch, train=False, aug_type='learned')
                     )
                     losses.append(outer_loss.item())
                     accuracies_pre_adapt_support.append(accuracies_support[0])
@@ -419,18 +438,21 @@ class MAML:
         Args:
             dataloader_test (DataLoader): loader for test tasks
         """
-        accuracies = []
-        for task_batch in dataloader_test:
-            _, _, accuracy_query = self._outer_step(task_batch, train=False)
-            accuracies.append(accuracy_query)
-        mean = np.mean(accuracies)
-        std = np.std(accuracies)
-        mean_95_confidence_interval = 1.96 * std / np.sqrt(NUM_TEST_TASKS)
-        print(
-            f'Accuracy over {NUM_TEST_TASKS} test tasks: '
-            f'mean {mean:.3f}, '
-            f'95% confidence interval {mean_95_confidence_interval:.3f}'
-        )
+
+        for aug_type in ['learned','random_crop_flip', 'AutoAugment']:
+            accuracies = []
+            for task_batch in dataloader_test:
+                _, _, accuracy_query = self._outer_step(task_batch, train=False, aug_type=aug_type)
+                accuracies.append(accuracy_query)
+            mean = np.mean(accuracies)
+            std = np.std(accuracies)
+            mean_95_confidence_interval = 1.96 * std / np.sqrt(NUM_TEST_TASKS)
+            print(
+                f'For augmentation type of {aug_type} '
+                f'Accuracy over {NUM_TEST_TASKS} test tasks: '
+                f'mean {mean:.3f}, '
+                f'95% confidence interval {mean_95_confidence_interval:.3f}'
+            )
 
     def load(self, checkpoint_step):
         """Loads a checkpoint.
