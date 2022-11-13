@@ -107,9 +107,7 @@ class MAML:
                 in_channels = NUM_HIDDEN_CHANNELS
 
         # make resnet pretrained feature extraction and freeze
-        temp = resnet50(weights=ResNet50_Weights.IMAGENET1K_V2)
-        temp.conv1.in_channels = NUM_INPUT_CHANNELS
-        self.resnet_model =nn.Sequential(*list(temp.children())[:-2]).to(DEVICE)
+        self.resnet_model =nn.Sequential(*list(resnet50(weights=ResNet50_Weights.IMAGENET1K_V2).children())[:-2]).to(DEVICE)
         for param in self.resnet_model.parameters():
             param.requires_grad = True
 
@@ -280,16 +278,14 @@ class MAML:
             images_query = images_query.to(DEVICE)
             labels_query = labels_query.to(DEVICE)
 
-
             # does the "augmentation"
-            #support_out = self._forward(images_support, self._meta_parameters)
-            support_out = images_support
+            support_out = self._forward(images_support, self._meta_parameters)
+
             # run in inner loop for resnet feature extraction and meta training
             param, acc = self._inner_loop(support_out, labels_support, train)
             accuracies_support_batch.append(acc)
 
-            # query_out = self._forward(images_query, self._meta_parameters)
-            query_out = images_query
+            query_out = self._forward(images_query, self._meta_parameters)
             query_out = self.resnet_model(query_out).squeeze()
             query_out = F.linear(
                 input = query_out,
