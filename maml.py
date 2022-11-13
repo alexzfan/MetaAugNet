@@ -173,8 +173,8 @@ class MAML:
                 stride=1,
                 padding='same'
             )
-            if random.uniform(0,1) < 0.3:
-                x += nn.init.xavier_uniform_(
+            if random.uniform(0,1) < 0.2:
+                x += nn.init.xavier_normal_(
                 torch.empty(
                     images.size(0),
                     parameters[f'conv{i}'].size(0),
