@@ -142,7 +142,8 @@ class MAML:
         self._optimizer = torch.optim.Adam(
             list(self._meta_parameters.values()) +
             list(self._inner_lrs.values()),
-            lr=self._outer_lr
+            lr=self._outer_lr,
+            weight_decay = 1e-05
         )
         self._log_dir = log_dir
         os.makedirs(self._log_dir, exist_ok=True)
@@ -173,7 +174,7 @@ class MAML:
                 stride=1,
                 padding='same'
             )
-            if random.uniform(0,1) < 0.5:
+            if random.uniform(0,1) < 0.1:
                 x += nn.init.normal_(
                 torch.empty(
                     images.size(0),
