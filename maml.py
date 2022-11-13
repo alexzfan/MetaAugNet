@@ -279,13 +279,14 @@ class MAML:
             labels_query = labels_query.to(DEVICE)
 
             # does the "augmentation"
-            support_out = self._forward(images_support, self._meta_parameters)
-
+            #support_out = self._forward(images_support, self._meta_parameters)
+            support_out = images_support
             # run in inner loop for resnet feature extraction and meta training
             param, acc = self._inner_loop(support_out, labels_support, train)
             accuracies_support_batch.append(acc)
 
-            query_out = self._forward(images_query, self._meta_parameters)
+            # query_out = self._forward(images_query, self._meta_parameters)
+            query_out = images_query
             query_out = self.resnet_model(query_out).squeeze()
             query_out = F.linear(
                 input = query_out,
