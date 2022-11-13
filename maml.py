@@ -183,8 +183,8 @@ class MAML:
                     requires_grad=False,
                     device=DEVICE
                 ),
-                mean = torch.mean(x),
-                std = torch.std(x)
+                mean = torch.mean(x).item(),
+                std = torch.std(x).item()
             )
             x = F.batch_norm(x, None, None, training=True)
             x = F.relu(x)
