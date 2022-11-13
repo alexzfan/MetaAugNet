@@ -150,7 +150,7 @@ class MAML:
 
         self._start_train_step = 0
 
-    def _forward(self, images, parameters):
+    def _forward(self, images, parameters, train):
         """Computes predicted classification logits.
 
         Args:
@@ -174,19 +174,20 @@ class MAML:
                 stride=1,
                 padding='same'
             )
-            if random.uniform(0,1) < 0.1:
-                x += nn.init.normal_(
-                torch.empty(
-                    images.size(0),
-                    parameters[f'conv{i}'].size(0),
-                    images.size(2),
-                    images.size(3),
-                    requires_grad=False,
-                    device=DEVICE
-                ),
-                mean = torch.mean(x).item(),
-                std = torch.std(x).item()
-            )
+            if train:
+                if random.uniform(0,1) < 0.1:
+                    x += nn.init.normal_(
+                    torch.empty(
+                        images.size(0),
+                        parameters[f'conv{i}'].size(0),
+                        images.size(2),
+                        images.size(3),
+                        requires_grad=False,
+                        device=DEVICE
+                    ),
+                    mean = torch.mean(x).item(),
+                    std = torch.std(x).item()
+                )
             x = F.batch_norm(x, None, None, training=True)
             x = F.relu(x)
         # x = torch.mean(x, dim=[2, 3])
@@ -279,13 +280,13 @@ class MAML:
             labels_query = labels_query.to(DEVICE)
 
             # does the "augmentation"
-            support_out = self._forward(images_support, self._meta_parameters)
+            support_out = self._forward(images_support, self._meta_parameters, train)
 
             # run in inner loop for resnet feature extraction and meta training
             param, acc = self._inner_loop(support_out, labels_support, train)
             accuracies_support_batch.append(acc)
 
-            query_out = self._forward(images_query, self._meta_parameters)
+            query_out = self._forward(images_query, self._meta_parameters, train)
             query_out = self.resnet_model(query_out).squeeze()
             query_out = F.linear(
                 input = query_out,
