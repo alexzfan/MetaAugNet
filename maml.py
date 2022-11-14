@@ -291,7 +291,7 @@ class MAML:
             # does the "augmentation"
             support_aug = self._forward(images_support, self._meta_parameters, train)
             print(support_aug.shape)
-            support_out = torch.stack(images_support, support_aug)
+            support_out = torch.stack((images_support, support_aug), axis = 0)
             print(support_out.shape)
             # run in inner loop for resnet feature extraction and meta training
             param, acc = self._inner_loop(support_out, labels_support, train)
