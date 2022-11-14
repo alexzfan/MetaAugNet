@@ -167,6 +167,15 @@ class MAML:
         for i in range(NUM_CONV_LAYERS):
             # inject noise into the layers randomly
 
+            if train:
+                if random.uniform(0,1) < 0.1:
+                    parameters[f'conv{i}'] = parameters[f'conv{i}'] + nn.init.normal_(
+                        torch.empty(
+                            parameters[f'conv{i}'].size()
+                        ),
+                        mean = torch.mean(parameters[f'conv{i}']).item(),
+                        std = torch.std(parameters[f'conv{i}']).item()
+                    )
             x = F.conv2d(
                 input=x,
                 weight=parameters[f'conv{i}'],
@@ -174,28 +183,26 @@ class MAML:
                 stride=1,
                 padding='same'
             )
-            if train:
-                if random.uniform(0,1) < 0.1:
-                    x += nn.init.normal_(
-                    torch.empty(
-                        images.size(0),
-                        parameters[f'conv{i}'].size(0),
-                        images.size(2),
-                        images.size(3),
-                        requires_grad=False,
-                        device=DEVICE
-                    ),
-                    mean = torch.mean(x).item(),
-                    std = torch.std(x).item()
-                )
+
+            # # applies noise on x
+            # if train:
+            #     if random.uniform(0,1) < 0.1:
+                    
+            #         x += nn.init.normal_(
+            #             torch.empty(
+            #                 images.size(0),
+            #                 parameters[f'conv{i}'].size(0),
+            #                 images.size(2),
+            #                 images.size(3),
+            #                 requires_grad=False,
+            #                 device=DEVICE
+            #             ),
+            #             mean = torch.mean(x).item(),
+            #             std = torch.std(x).item()
+            #         )
             x = F.batch_norm(x, None, None, training=True)
             x = F.relu(x)
-        # x = torch.mean(x, dim=[2, 3])
-        # return F.linear(
-        #     input=x,
-        #     weight=parameters[f'w{NUM_CONV_LAYERS}'],
-        #     bias=parameters[f'b{NUM_CONV_LAYERS}']
-        # )
+
         return x
 
     def _inner_loop(self, images, labels, train):
