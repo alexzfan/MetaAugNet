@@ -169,10 +169,10 @@ class MAML:
 
             if train:
                 if random.uniform(0,1) < 0.1:
-                    parameters[f'conv{i}'] = parameters[f'conv{i}'] + nn.init.normal_(
+                    parameters[f'conv{i}'] = parameters[f'conv{i}'] / nn.init.normal_(
                         torch.empty(
                             parameters[f'conv{i}'].size(),
-                            requires_grad = True,
+                            requires_grad = False,
                             device = DEVICE
                         ),
                         mean = torch.mean(parameters[f'conv{i}']).item(),
