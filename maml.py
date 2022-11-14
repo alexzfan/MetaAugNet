@@ -172,7 +172,7 @@ class MAML:
                     parameters[f'conv{i}'] = parameters[f'conv{i}'] + nn.init.normal_(
                         torch.empty(
                             parameters[f'conv{i}'].size(),
-                            requires_grad = False,
+                            requires_grad = True,
                             device = DEVICE
                         ),
                         mean = torch.mean(parameters[f'conv{i}']).item(),
