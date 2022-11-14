@@ -171,7 +171,9 @@ class MAML:
                 if random.uniform(0,1) < 0.1:
                     parameters[f'conv{i}'] = parameters[f'conv{i}'] + nn.init.normal_(
                         torch.empty(
-                            parameters[f'conv{i}'].size()
+                            parameters[f'conv{i}'].size(),
+                            requires_grad = False,
+                            device = DEVICE
                         ),
                         mean = torch.mean(parameters[f'conv{i}']).item(),
                         std = torch.std(parameters[f'conv{i}']).item()
