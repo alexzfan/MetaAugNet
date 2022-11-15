@@ -19,7 +19,7 @@ def score(logits, labels):
     y = y.type(torch.float)
     return torch.mean(y).item()
 
-def increase_image_channels(images, num_out_channels):
+def increase_image_channels(images, num_out_channels, device):
     """Updates an image with updated number of channels to feed into a pretrained model
 
     Args:
@@ -29,13 +29,13 @@ def increase_image_channels(images, num_out_channels):
     """
     temp = torch.empty((images.size(0), num_out_channels, images.size(2), images.size(3)))
 
-    image_mean = torch.mean(images, axis = 1, keepdim=True)
+    image_mean = torch.mean(images, axis = 1, keepdim=True).unsqueeze(1)
     for i in range(num_out_channels):
         if i < images.size(1):
             temp[:, i, :, :] = images[:, i, :, :]
         else:
             temp[:, i, :, :] = image_mean
-    images = temp
+    images = temp.to(device)
     return
 
     

@@ -290,8 +290,8 @@ class MAML:
 
             # does the "augmentation"
             support_aug = self._forward(images_support, self._meta_parameters, train)
-            util.increase_image_channels(images_support, RESNET_CHANNEL)
-            util.increase_image_channels(support_aug, RESNET_CHANNEL)
+            util.increase_image_channels(images_support, RESNET_CHANNEL, DEVICE)
+            util.increase_image_channels(support_aug, RESNET_CHANNEL, DEVICE)
             print(support_aug.shape)
             support_out = torch.stack((images_support, support_aug), axis = 0)
             print(support_out.shape)
