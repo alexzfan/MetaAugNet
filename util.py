@@ -29,7 +29,7 @@ def increase_image_channels(images, num_out_channels, device):
     """
     temp = torch.empty((images.size(0), num_out_channels, images.size(2), images.size(3)))
 
-    image_mean = torch.mean(images, axis = 1, keepdim=True).unsqueeze(1)
+    image_mean = torch.mean(images, axis = 1)
     for i in range(num_out_channels):
         if i < images.size(1):
             temp[:, i, :, :] = images[:, i, :, :]
