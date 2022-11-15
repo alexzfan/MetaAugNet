@@ -115,7 +115,7 @@ class MAML:
                         device=DEVICE
                     )
                 )
-                print("test: {}".format(test.shape))
+                print("test: {}".format(test[0,:,:,:]))
 
                 temp = torch.empty(
                         NUM_HIDDEN_CHANNELS,
@@ -133,7 +133,7 @@ class MAML:
                 for i in range(NUM_HIDDEN_CHANNELS):
                     for j in range(in_channels):
                         temp[i,j, :, :] = kernel
-                print(temp.shape)
+                print(temp[0,:,:,:])
                 meta_parameters[f'conv{i}'] = temp.requires_grad_()
 
                 meta_parameters[f'b{i}'] = nn.init.zeros_(
