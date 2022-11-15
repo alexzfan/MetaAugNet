@@ -225,22 +225,22 @@ class MAML:
             )
 
             # applies noise on x
-            if train:
-                if random.uniform(0,1) < 0.1:
+            # if train:
+            #     if random.uniform(0,1) < 0.1:
                     
-                    x += nn.init.normal_(
-                        torch.empty(
-                            images.size(0),
-                            parameters[f'conv{i}'].size(0),
-                            images.size(2),
-                            images.size(3),
-                            requires_grad=False,
-                            device=DEVICE
-                        ),
-                        mean = torch.mean(x).item(),
-                        std = torch.std(x).item()
-                    )
-            x = F.batch_norm(x, None, None, training=True)
+            #         x += nn.init.normal_(
+            #             torch.empty(
+            #                 images.size(0),
+            #                 parameters[f'conv{i}'].size(0),
+            #                 images.size(2),
+            #                 images.size(3),
+            #                 requires_grad=False,
+            #                 device=DEVICE
+            #             ),
+            #             mean = torch.mean(x).item(),
+            #             std = torch.std(x).item()
+            #         )
+            # x = F.batch_norm(x, None, None, training=True)
             x = F.relu(x)
 
         return x
