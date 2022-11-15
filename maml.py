@@ -125,10 +125,10 @@ class MAML:
                         device=DEVICE
                     )
                 kernel = torch.eye(KERNEL_SIZE)
-                kernel[0:KERNEL_SIZE/2,:] = 0
-                kernel[(KERNEL_SIZE/2 + 1):, :] = 0
-                kernel[:, 0:KERNEL_SIZE/2] = 0
-                kernel[:, (KERNEL_SIZE/2 + 1):] = 0
+                kernel[0: int(KERNEL_SIZE/2),:] = 0
+                kernel[int(KERNEL_SIZE/2 + 1):, :] = 0
+                kernel[:, 0:int(KERNEL_SIZE/2)] = 0
+                kernel[:, int(KERNEL_SIZE/2 + 1):] = 0
                 for i in range(NUM_INPUT_CHANNELS):
                     for j in range(in_channels):
                         temp[i,j, :, :] = kernel
@@ -326,7 +326,9 @@ class MAML:
             labels_query = labels_query.to(DEVICE)
 
             # does the "augmentation"
+            print(images_support[0,:,:,:])
             support_aug = self._forward(images_support, self._meta_parameters, train)
+            print(support_aug[0,:,:,:])
             images_support = util.increase_image_channels(images_support, RESNET_CHANNEL, DEVICE)
             support_aug = util.increase_image_channels(support_aug, RESNET_CHANNEL, DEVICE)
             support_out = torch.cat((images_support, support_aug), dim = 0)
