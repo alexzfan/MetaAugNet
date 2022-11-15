@@ -329,6 +329,7 @@ class MAML:
 
             # does the "augmentation"
             print(images_support[0,:,:,:])
+            print(self._meta_parameters['conv0'].shape)
             support_aug = self._forward(images_support, self._meta_parameters, train)
             print(support_aug[0,:,:,:])
             sys.exit()
