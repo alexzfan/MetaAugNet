@@ -117,7 +117,7 @@ class MAML:
                 # )
 
                 temp = torch.empty(
-                        NUM_INPUT_CHANNELS,
+                        NUM_HIDDEN_CHANNELS,
                         in_channels,
                         KERNEL_SIZE,
                         KERNEL_SIZE,
