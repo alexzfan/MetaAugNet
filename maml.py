@@ -136,7 +136,6 @@ class MAML:
 
                 temp.requires_grad = True
                 meta_parameters[f'conv{i}'] = temp
-                print(meta_parameters[f'conv{i}'].shape)
                 meta_parameters[f'b{i}'] = nn.init.zeros_(
                     torch.empty(
                         NUM_HIDDEN_CHANNELS,
@@ -170,8 +169,7 @@ class MAML:
 
         self._meta_parameters = meta_parameters
         self._num_inner_steps = num_inner_steps
-        for k, v in self._meta_parameters.items():
-            print(k, v.shape)
+
         self._inner_lrs = {
             k: torch.tensor(inner_lr, requires_grad=learn_inner_lrs)
             for k in self.linear_head_param.keys()
@@ -218,11 +216,9 @@ class MAML:
             #             mean = torch.mean(parameters[f'conv{i}']).item(),
             #             std = torch.std(parameters[f'conv{i}']).item()
             #         )
-            print(i)
-            print("in forward: {}".format(parameters[f'conv{i}'].shape))
             x = F.conv2d(
                 input=x,
-                weight=parameters[f'conv{i}'].transpose(0,1),
+                weight=parameters[f'conv{i}'],
                 bias=parameters[f'b{i}'],
                 stride=1,
                 padding='same'
