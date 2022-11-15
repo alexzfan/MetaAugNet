@@ -225,21 +225,21 @@ class MAML:
             )
 
             # applies noise on x
-            # if train:
-            #     if random.uniform(0,1) < 0.1:
+            if train:
+                if random.uniform(0,1) < 0.1:
                     
-            #         x += nn.init.normal_(
-            #             torch.empty(
-            #                 images.size(0),
-            #                 parameters[f'conv{i}'].size(0),
-            #                 images.size(2),
-            #                 images.size(3),
-            #                 requires_grad=False,
-            #                 device=DEVICE
-            #             ),
-            #             mean = torch.mean(x).item(),
-            #             std = torch.std(x).item()
-            #         )
+                    x += nn.init.normal_(
+                        torch.empty(
+                            images.size(0),
+                            parameters[f'conv{i}'].size(0),
+                            images.size(2),
+                            images.size(3),
+                            requires_grad=False,
+                            device=DEVICE
+                        ),
+                        mean = torch.mean(x).item(),
+                        std = torch.std(x).item()
+                    )
             # x = F.batch_norm(x, None, None, training=True)
             x = F.relu(x)
 
@@ -327,11 +327,8 @@ class MAML:
             labels_query = labels_query.to(DEVICE)
 
             # does the "augmentation"
-            print(images_support[0,:,:,:])
-            print(self._meta_parameters['conv0'].shape)
+
             support_aug = self._forward(images_support, self._meta_parameters, train)
-            print(support_aug[0,:,:,:])
-            sys.exit()
             images_support = util.increase_image_channels(images_support, RESNET_CHANNEL, DEVICE)
             support_aug = util.increase_image_channels(support_aug, RESNET_CHANNEL, DEVICE)
             support_out = torch.cat((images_support, support_aug), dim = 0)
