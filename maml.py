@@ -94,7 +94,7 @@ class MAML:
                 for i in range(NUM_INPUT_CHANNELS):
                     for j in range(in_channels):
                         temp[i,j, :, :] = kernel
-                meta_parameters[f'conv{i}'] = temp.requires_grad(True)
+                meta_parameters[f'conv{i}'] = temp.requires_grad_()
 
                 meta_parameters[f'b{i}'] = nn.init.zeros_(
                     torch.empty(
@@ -132,7 +132,7 @@ class MAML:
                 for i in range(NUM_INPUT_CHANNELS):
                     for j in range(in_channels):
                         temp[i,j, :, :] = kernel
-                meta_parameters[f'conv{i}'] = temp.requires_grad(True)
+                meta_parameters[f'conv{i}'] = temp.requires_grad_()
 
                 meta_parameters[f'b{i}'] = nn.init.zeros_(
                     torch.empty(
