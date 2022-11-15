@@ -230,7 +230,7 @@ class MAML:
 
         for i in range(self._num_inner_steps):
             # run resnet on the convnet output
-            out = self.pretrain_model(images)
+            out = self.pretrain_model(images).squeeze()
             out = F.linear(
                 input = out,
                 weight = inner_parameters[f'w{NUM_CONV_LAYERS}'],
