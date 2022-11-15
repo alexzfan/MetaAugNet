@@ -293,8 +293,10 @@ class MAML:
             util.increase_image_channels(images_support, RESNET_CHANNEL, DEVICE)
             util.increase_image_channels(support_aug, RESNET_CHANNEL, DEVICE)
             print(support_aug.shape)
-            support_out = torch.stack((images_support, support_aug), axis = 0)
+            support_out = torch.cat((images_support, support_aug), dim = 0)
             print(support_out.shape)
+
+            labels_support = torch.cat((labels_support, labels_support), dim = 0)
             sys.exit()
             # run in inner loop for resnet feature extraction and meta training
             param, acc = self._inner_loop(support_out, labels_support, train)
