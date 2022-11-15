@@ -94,7 +94,9 @@ class MAML:
                 for i in range(NUM_INPUT_CHANNELS):
                     for j in range(in_channels):
                         temp[i,j, :, :] = kernel
-                meta_parameters[f'conv{i}'] = temp.requires_grad_()
+
+                temp.requires_grad = True
+                meta_parameters[f'conv{i}'] = temp
 
                 meta_parameters[f'b{i}'] = nn.init.zeros_(
                     torch.empty(
@@ -132,7 +134,8 @@ class MAML:
                     for j in range(in_channels):
                         temp[i,j, :, :] = kernel
 
-                meta_parameters[f'conv{i}'] = temp.requires_grad_()
+                temp.requires_grad = True
+                meta_parameters[f'conv{i}'] = temp
                 print(meta_parameters[f'conv{i}'].shape)
                 meta_parameters[f'b{i}'] = nn.init.zeros_(
                     torch.empty(
@@ -142,7 +145,6 @@ class MAML:
                     )
                 )
                 in_channels = NUM_HIDDEN_CHANNELS
-
         # make resnet pretrained feature extraction and freeze
         self.pretrain_model =nn.Sequential(*list(squeezenet1_1(weights=SqueezeNet1_1_Weights.IMAGENET1K_V1).children())[:-1]).to(DEVICE)
         for param in self.pretrain_model.parameters():
@@ -168,7 +170,8 @@ class MAML:
 
         self._meta_parameters = meta_parameters
         self._num_inner_steps = num_inner_steps
-
+        for k, v in self._meta_parameters.items():
+            print(k, v.shape)
         self._inner_lrs = {
             k: torch.tensor(inner_lr, requires_grad=learn_inner_lrs)
             for k in self.linear_head_param.keys()
