@@ -292,17 +292,20 @@ class MAML:
             support_aug = self._forward(images_support, self._meta_parameters, train)
             util.increase_image_channels(images_support, RESNET_CHANNEL, DEVICE)
             util.increase_image_channels(support_aug, RESNET_CHANNEL, DEVICE)
-            print(support_aug.shape)
             support_out = torch.cat((images_support, support_aug), dim = 0)
-            print(support_out.shape)
-
             labels_support = torch.cat((labels_support, labels_support), dim = 0)
-            sys.exit()
+
             # run in inner loop for resnet feature extraction and meta training
             param, acc = self._inner_loop(support_out, labels_support, train)
             accuracies_support_batch.append(acc)
 
-            query_out = self._forward(images_query, self._meta_parameters, train)
+            # run adapted linear on the query
+            query_aug = self._forward(images_query, self._meta_parameters, train)
+            util.increase_image_channels(images_query, RESNET_CHANNEL, DEVICE)
+            util.increase_image_channels(query_aug, RESNET_CHANNEL, DEVICE)
+            query_out = torch.cat((images_query, query_aug), dim = 0)
+            labels_query = torch.cat((labels_query, labels_query), dim = 0)
+
             query_out = self.resnet_model(query_out).squeeze()
             query_out = F.linear(
                 input = query_out,
