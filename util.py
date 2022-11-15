@@ -35,7 +35,7 @@ def increase_image_channels(images, num_out_channels, device):
             temp[:, i, :, :] = images[:, i, :, :]
         else:
             temp[:, i, :, :] = image_mean
-    images = temp.to(device)
-    return
+    
+    return temp.to(device)
 
     

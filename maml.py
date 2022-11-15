@@ -290,8 +290,8 @@ class MAML:
 
             # does the "augmentation"
             support_aug = self._forward(images_support, self._meta_parameters, train)
-            util.increase_image_channels(images_support, RESNET_CHANNEL, DEVICE)
-            util.increase_image_channels(support_aug, RESNET_CHANNEL, DEVICE)
+            images_support = util.increase_image_channels(images_support, RESNET_CHANNEL, DEVICE)
+            support_aug = util.increase_image_channels(support_aug, RESNET_CHANNEL, DEVICE)
             support_out = torch.cat((images_support, support_aug), dim = 0)
             labels_support = torch.cat((labels_support, labels_support), dim = 0)
 
@@ -301,8 +301,8 @@ class MAML:
 
             # run adapted linear on the query
             query_aug = self._forward(images_query, self._meta_parameters, train)
-            util.increase_image_channels(images_query, RESNET_CHANNEL, DEVICE)
-            util.increase_image_channels(query_aug, RESNET_CHANNEL, DEVICE)
+            images_query = util.increase_image_channels(images_query, RESNET_CHANNEL, DEVICE)
+            query_aug = util.increase_image_channels(query_aug, RESNET_CHANNEL, DEVICE)
             query_out = torch.cat((images_query, query_aug), dim = 0)
             labels_query = torch.cat((labels_query, labels_query), dim = 0)
 
