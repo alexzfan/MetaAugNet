@@ -86,7 +86,7 @@ class MAML:
                         requires_grad=False,
                         device=DEVICE
                     )
-                kernel = torch.eye(KERNEL_SIZE) / NUM_INPUT_CHANNELS / in_channels
+                kernel = torch.eye(KERNEL_SIZE) / NUM_INPUT_CHANNELS
                 kernel[0: int(KERNEL_SIZE/2),:] = 0
                 kernel[int(KERNEL_SIZE/2 + 1):, :] = 0
                 kernel[:, 0:int(KERNEL_SIZE/2)] = 0
@@ -125,7 +125,7 @@ class MAML:
                         requires_grad=False,
                         device=DEVICE
                     )
-                kernel = torch.eye(KERNEL_SIZE) / NUM_HIDDEN_CHANNELS / in_channels
+                kernel = torch.eye(KERNEL_SIZE) / NUM_HIDDEN_CHANNELS
                 kernel[0: int(KERNEL_SIZE/2),:] = 0
                 kernel[int(KERNEL_SIZE/2 + 1):, :] = 0
                 kernel[:, 0:int(KERNEL_SIZE/2)] = 0
