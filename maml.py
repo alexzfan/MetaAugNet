@@ -215,6 +215,7 @@ class MAML:
             #             mean = torch.mean(parameters[f'conv{i}']).item(),
             #             std = torch.std(parameters[f'conv{i}']).item()
             #         )
+            print(i)
             x = F.conv2d(
                 input=x,
                 weight=parameters[f'conv{i}'],
