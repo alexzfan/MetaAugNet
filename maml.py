@@ -107,7 +107,7 @@ class MAML:
                 in_channels = NUM_HIDDEN_CHANNELS
 
         # make resnet pretrained feature extraction and freeze
-        self.pretrain_model =nn.Sequential(*list(squeezenet1_1(weights=SqueezeNet1_1_Weights.IMAGENET1K_V1).children())).to(DEVICE)
+        self.pretrain_model =nn.Sequential(*list(squeezenet1_1(weights=SqueezeNet1_1_Weights.IMAGENET1K_V1).children())[:-1]).to(DEVICE)
         for param in self.pretrain_model.parameters():
             param.requires_grad = False
 
@@ -116,7 +116,7 @@ class MAML:
         self.linear_head_param[f'w{NUM_CONV_LAYERS}'] = nn.init.xavier_uniform_(
             torch.empty(
                 num_outputs,
-                2048, # figure out shape of this 
+                512, # figure out shape of this 
                 requires_grad=True,
                 device=DEVICE
             )
@@ -231,8 +231,6 @@ class MAML:
         for i in range(self._num_inner_steps):
             # run resnet on the convnet output
             out = self.pretrain_model(images)
-            print(out.shape)
-            sys.exit()
             out = F.linear(
                 input = out,
                 weight = inner_parameters[f'w{NUM_CONV_LAYERS}'],
