@@ -70,7 +70,7 @@ class MAML:
             if i == NUM_CONV_LAYERS - 1:
                 meta_parameters[f'conv{i}'] = nn.init.xavier_uniform_(
                     torch.empty(
-                        3,
+                        NUM_INPUT_CHANNELS,
                         in_channels,
                         KERNEL_SIZE,
                         KERNEL_SIZE,
@@ -80,7 +80,7 @@ class MAML:
                 )
                 meta_parameters[f'b{i}'] = nn.init.zeros_(
                     torch.empty(
-                        3,
+                        NUM_INPUT_CHANNELS,
                         requires_grad=True,
                         device=DEVICE
                     )
@@ -290,9 +290,12 @@ class MAML:
 
             # does the "augmentation"
             support_aug = self._forward(images_support, self._meta_parameters, train)
+            util.increase_image_channels(images_support)
+            util.increase_image_channels(support_aug)
             print(support_aug.shape)
             support_out = torch.stack((images_support, support_aug), axis = 0)
             print(support_out.shape)
+            sys.exit()
             # run in inner loop for resnet feature extraction and meta training
             param, acc = self._inner_loop(support_out, labels_support, train)
             accuracies_support_batch.append(acc)
