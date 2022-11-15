@@ -129,7 +129,7 @@ class MAML:
                 kernel[int(KERNEL_SIZE/2 + 1):, :] = 0
                 kernel[:, 0:int(KERNEL_SIZE/2)] = 0
                 kernel[:, int(KERNEL_SIZE/2 + 1):] = 0
-                for i in range(NUM_INPUT_CHANNELS):
+                for i in range(NUM_HIDDEN_CHANNELS):
                     for j in range(in_channels):
                         temp[i,j, :, :] = kernel
                 meta_parameters[f'conv{i}'] = temp.requires_grad_()
