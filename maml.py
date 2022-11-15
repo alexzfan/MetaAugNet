@@ -219,7 +219,7 @@ class MAML:
             print("in forward: {}".format(parameters[f'conv{i}'].shape))
             x = F.conv2d(
                 input=x,
-                weight=parameters[f'conv{i}'],
+                weight=parameters[f'conv{i}'].transpose(0,1),
                 bias=parameters[f'b{i}'],
                 stride=1,
                 padding='same'
