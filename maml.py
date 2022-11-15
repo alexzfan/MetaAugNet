@@ -105,16 +105,17 @@ class MAML:
                 )
                 in_channels = NUM_HIDDEN_CHANNELS
             else:
-                # meta_parameters[f'conv{i}'] = nn.init.xavier_uniform_(
-                #     torch.empty(
-                #         NUM_HIDDEN_CHANNELS,
-                #         in_channels,
-                #         KERNEL_SIZE,
-                #         KERNEL_SIZE,
-                #         requires_grad=True,
-                #         device=DEVICE
-                #     )
-                # )
+                test= nn.init.xavier_uniform_(
+                    torch.empty(
+                        NUM_HIDDEN_CHANNELS,
+                        in_channels,
+                        KERNEL_SIZE,
+                        KERNEL_SIZE,
+                        requires_grad=True,
+                        device=DEVICE
+                    )
+                )
+                print("test: {}".format(test.shape))
 
                 temp = torch.empty(
                         NUM_HIDDEN_CHANNELS,
