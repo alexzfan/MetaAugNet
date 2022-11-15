@@ -107,7 +107,7 @@ class MAML:
                 in_channels = NUM_HIDDEN_CHANNELS
 
         # make resnet pretrained feature extraction and freeze
-        self.pretrain_model =nn.Sequential(*list(squeezenet1_1(weights=SqueezeNet1_1_Weights.IMAGENET1K_V1).children())[:-1]).to(DEVICE)
+        self.pretrain_model =nn.Sequential(*list(squeezenet1_1(weights=SqueezeNet1_1_Weights.IMAGENET1K_V1).children())).to(DEVICE)
         for param in self.pretrain_model.parameters():
             param.requires_grad = False
 
