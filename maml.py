@@ -26,7 +26,7 @@ SAVE_INTERVAL = 100
 LOG_INTERVAL = 10
 VAL_INTERVAL = LOG_INTERVAL * 5
 NUM_TEST_TASKS = 600
-
+RESNET_CHANNEL = 3
 
 class MAML:
     """Trains and assesses a MAML."""
@@ -290,8 +290,8 @@ class MAML:
 
             # does the "augmentation"
             support_aug = self._forward(images_support, self._meta_parameters, train)
-            util.increase_image_channels(images_support)
-            util.increase_image_channels(support_aug)
+            util.increase_image_channels(images_support, RESNET_CHANNEL)
+            util.increase_image_channels(support_aug, RESNET_CHANNEL)
             print(support_aug.shape)
             support_out = torch.stack((images_support, support_aug), axis = 0)
             print(support_out.shape)
