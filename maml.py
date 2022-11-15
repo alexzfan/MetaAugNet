@@ -68,8 +68,17 @@ class MAML:
         in_channels = NUM_INPUT_CHANNELS
         for i in range(NUM_CONV_LAYERS):
             if i == NUM_CONV_LAYERS - 1:
-                meta_parameters[f'conv{i}'] = nn.init.xavier_uniform_(
-                    torch.empty(
+                # meta_parameters[f'conv{i}'] = nn.init.xavier_uniform_(
+                #     torch.empty(
+                #         NUM_INPUT_CHANNELS,
+                #         in_channels,
+                #         KERNEL_SIZE,
+                #         KERNEL_SIZE,
+                #         requires_grad=True,
+                #         device=DEVICE
+                #     )
+                # )
+                temp = torch.empty(
                         NUM_INPUT_CHANNELS,
                         in_channels,
                         KERNEL_SIZE,
@@ -77,7 +86,16 @@ class MAML:
                         requires_grad=True,
                         device=DEVICE
                     )
-                )
+                kernel = torch.eye(KERNEL_SIZE)
+                kernel[0:KERNEL_SIZE/2,:] = 0
+                kernel[(KERNEL_SIZE/2 + 1):, :] = 0
+                kernel[:, 0:KERNEL_SIZE/2] = 0
+                kernel[:, (KERNEL_SIZE/2 + 1):] = 0
+                for i in range(NUM_INPUT_CHANNELS):
+                    for j in range(in_channels):
+                        temp[i,j, :, :] = kernel
+                meta_parameters[f'conv{i}'] = temp
+
                 meta_parameters[f'b{i}'] = nn.init.zeros_(
                     torch.empty(
                         NUM_INPUT_CHANNELS,
@@ -87,16 +105,35 @@ class MAML:
                 )
                 in_channels = NUM_HIDDEN_CHANNELS
             else:
-                meta_parameters[f'conv{i}'] = nn.init.xavier_uniform_(
-                    torch.empty(
-                        NUM_HIDDEN_CHANNELS,
+                # meta_parameters[f'conv{i}'] = nn.init.xavier_uniform_(
+                #     torch.empty(
+                #         NUM_HIDDEN_CHANNELS,
+                #         in_channels,
+                #         KERNEL_SIZE,
+                #         KERNEL_SIZE,
+                #         requires_grad=True,
+                #         device=DEVICE
+                #     )
+                # )
+
+                temp = torch.empty(
+                        NUM_INPUT_CHANNELS,
                         in_channels,
                         KERNEL_SIZE,
                         KERNEL_SIZE,
                         requires_grad=True,
                         device=DEVICE
                     )
-                )
+                kernel = torch.eye(KERNEL_SIZE)
+                kernel[0:KERNEL_SIZE/2,:] = 0
+                kernel[(KERNEL_SIZE/2 + 1):, :] = 0
+                kernel[:, 0:KERNEL_SIZE/2] = 0
+                kernel[:, (KERNEL_SIZE/2 + 1):] = 0
+                for i in range(NUM_INPUT_CHANNELS):
+                    for j in range(in_channels):
+                        temp[i,j, :, :] = kernel
+                meta_parameters[f'conv{i}'] = temp
+
                 meta_parameters[f'b{i}'] = nn.init.zeros_(
                     torch.empty(
                         NUM_HIDDEN_CHANNELS,
