@@ -9,7 +9,7 @@ from torch import nn
 import torch.nn.functional as F
 from torch import autograd
 from torch.utils import tensorboard
-from torchvision.models import resnet50, ResNet50_Weights
+from torchvision.models import squeezenet1_1, SqueezeNet1_1_Weights
 
 import omniglot
 import util
@@ -107,9 +107,9 @@ class MAML:
                 in_channels = NUM_HIDDEN_CHANNELS
 
         # make resnet pretrained feature extraction and freeze
-        self.resnet_model =nn.Sequential(*list(resnet50(weights=ResNet50_Weights.IMAGENET1K_V2).children())[:-2]).to(DEVICE)
-        for param in self.resnet_model.parameters():
-            param.requires_grad = True
+        self.pretrain_model =nn.Sequential(*list(squeezenet1_1(weights=SqueezeNet1_1_Weights.IMAGENET1K_V1).children())[:-2]).to(DEVICE)
+        for param in self.pretrain_model.parameters():
+            param.requires_grad = False
 
         # construct linear head layer
         self.linear_head_param = {}
@@ -230,7 +230,9 @@ class MAML:
 
         for i in range(self._num_inner_steps):
             # run resnet on the convnet output
-            out = self.resnet_model(images).squeeze()
+            out = self.pretrain_model(images)
+            print(out.shape)
+            sys.exit()
             out = F.linear(
                 input = out,
                 weight = inner_parameters[f'w{NUM_CONV_LAYERS}'],
@@ -247,7 +249,7 @@ class MAML:
                 inner_parameters[k] = inner_parameters[k] - self._inner_lrs[k]*d_loss[i]
 
         # last run on the fully adapted params
-        out = self.resnet_model(images).squeeze()
+        out = self.pretrain_model(images).squeeze()
         out = F.linear(
                 input = out,
                 weight = inner_parameters[f'w{NUM_CONV_LAYERS}'],
@@ -306,7 +308,7 @@ class MAML:
             query_out = torch.cat((images_query, query_aug), dim = 0)
             labels_query = torch.cat((labels_query, labels_query), dim = 0)
 
-            query_out = self.resnet_model(query_out).squeeze()
+            query_out = self.pretrain_model(query_out).squeeze()
             query_out = F.linear(
                 input = query_out,
                 weight = param[f'w{NUM_CONV_LAYERS}'],
