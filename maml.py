@@ -562,6 +562,7 @@ def main(args):
         args.num_way,
         args.num_inner_steps,
         args.pretrain,
+        args.num_augs,
         args.inner_lr,
         args.learn_inner_lrs,
         args.outer_lr,
