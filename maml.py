@@ -185,9 +185,9 @@ class MAML:
         self._outer_lr = outer_lr
 
         self._optimizer = torch.optim.Adam(
-            list(self._meta_parameters.values()) +
-            list(self._inner_lrs.values()) +
-            list(self._inner_params.values()),
+            list(self._meta_parameters.values())+
+            list(self._inner_params.values()) +
+            list(self._inner_lrs.values()) ,
             lr=self._outer_lr,
             weight_decay = l2_wd
         )
