@@ -71,7 +71,7 @@ class MAML:
         in_channels = NUM_INPUT_CHANNELS
         for i in range(NUM_CONV_LAYERS):
             if i == NUM_CONV_LAYERS - 1:
-                meta_parameters[f'conv{i}'] = nn.init.xavier_uniform_(
+                meta_parameters[f'conv{i}'] = nn.init.constant_(
                     torch.empty(
                         NUM_INPUT_CHANNELS,
                         in_channels,
@@ -79,8 +79,9 @@ class MAML:
                         KERNEL_SIZE,
                         requires_grad=True,
                         device=DEVICE
-                    )
-                ) * 0.00001
+                    ),
+                    0.000001
+                ) 
 
                 meta_parameters[f'b{i}'] = nn.init.zeros_(
                     torch.empty(
@@ -91,7 +92,7 @@ class MAML:
                 )
                 in_channels = NUM_HIDDEN_CHANNELS
             else:
-                meta_parameters[f'conv{i}']= nn.init.xavier_uniform_(
+                meta_parameters[f'conv{i}']= nn.init.constant_(
                     torch.empty(
                         NUM_HIDDEN_CHANNELS,
                         in_channels,
@@ -99,8 +100,9 @@ class MAML:
                         KERNEL_SIZE,
                         requires_grad=True,
                         device=DEVICE
-                    )
-                ) * 0.00001
+                    ),
+                    0.000001
+                ) 
 
                 meta_parameters[f'b{i}'] = nn.init.zeros_(
                     torch.empty(
@@ -183,11 +185,6 @@ class MAML:
         }
         
         self._outer_lr = outer_lr
-
-        for k, v in self._meta_parameters.items():
-            print(k, v.is_leaf)
-        for k, v in self._inner_lrs.items():
-            print(k, v.is_leaf)
         self._optimizer = torch.optim.Adam(
             list(self._meta_parameters.values())+
             list(self._inner_params.values()) +
