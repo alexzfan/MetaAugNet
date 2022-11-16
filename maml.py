@@ -178,7 +178,7 @@ class MAML:
         self.num_augs = num_augs
         self._inner_lrs = {
             k: torch.tensor(inner_lr, requires_grad=learn_inner_lrs)
-            for k in self.linear_head_param.keys()
+            for k in self.inner_params.keys()
         }
         
         self._outer_lr = outer_lr
