@@ -226,7 +226,7 @@ class MAML:
             # applies noise on x
             if random.uniform(0,1) < 0.2:
                 
-                x += nn.init.normal_(
+                x = x + nn.init.normal_(
                     torch.empty(
                         images.size(0),
                         parameters[f'conv{i}'].size(0),
@@ -240,7 +240,7 @@ class MAML:
                 )
             # x = F.batch_norm(x, None, None, training=True)
             x = F.relu(x)
-        x += res
+        x = x + res
         return x
 
     def _inner_forward(self, images, parameters):
