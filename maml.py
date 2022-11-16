@@ -138,6 +138,7 @@ class MAML:
         else:
             # construct linear head layer
             inner_params = {}
+            in_channels = NUM_INPUT_CHANNELS
             for i in range(INNER_MODEL_SIZE):
                 inner_params[f'conv{i}']= nn.init.xavier_uniform_(
                     torch.empty(
