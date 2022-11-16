@@ -185,7 +185,7 @@ class MAML:
         self._outer_lr = outer_lr
 
         for k, v in self._inner_params.items():
-            print(k, v.is_leaf())
+            print(k,v)
 
         self._optimizer = torch.optim.Adam(
             list(self._meta_parameters.values())+
