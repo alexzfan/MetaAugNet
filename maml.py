@@ -274,6 +274,7 @@ class MAML:
                     stride=1,
                     padding='same'
                 ) 
+                x = F.batch_norm(x, None, None, training = True)
                 x = F.relu(x)
             x = torch.mean(x, dim = [2,3])
             x = F.linear(
@@ -352,17 +353,18 @@ class MAML:
 
             # does the "augmentation"
 
-            support_augs = []
-            labels_temp = []
-            for i in range(self.num_augs):
-                support_aug = self._augmentation_forward(images_support, self._meta_parameters, train)
-                if self.pretrain:
-                    if NUM_INPUT_CHANNELS != RESNET_CHANNEL:
-                        support_aug = util.increase_image_channels(support_aug, RESNET_CHANNEL, DEVICE)
-                support_augs.append(support_aug)
-                labels_temp.append(labels_support)
-            support_out = torch.cat(support_augs, dim = 0)
-            labels_support = torch.cat(labels_temp, dim = 0)
+            # support_augs = []
+            # labels_temp = []
+            # for i in range(self.num_augs):
+            #     support_aug = self._augmentation_forward(images_support, self._meta_parameters, train)
+            #     if self.pretrain and NUM_INPUT_CHANNELS != RESNET_CHANNEL:
+            #         support_aug = util.increase_image_channels(support_aug, RESNET_CHANNEL, DEVICE)
+            #     support_augs.append(support_aug)
+            #     labels_temp.append(labels_support)
+            # support_out = torch.cat(support_augs, dim = 0)
+            # labels_support = torch.cat(labels_temp, dim = 0)
+
+            support_out = images_support
 
             # run in inner loop for resnet feature extraction and meta training
             param, acc = self._inner_loop(support_out, labels_support, train)
