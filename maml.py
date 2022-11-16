@@ -19,7 +19,6 @@ import random
 NUM_INPUT_CHANNELS = 1
 NUM_HIDDEN_CHANNELS = 64
 KERNEL_SIZE = 3
-NUM_CONV_LAYERS = 4
 DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
 SUMMARY_INTERVAL = 10
 SAVE_INTERVAL = 100
@@ -36,6 +35,7 @@ class MAML:
             num_outputs,
             num_inner_steps,
             pretrain,
+            aug_net_size,
             num_augs,
             inner_lr,
             learn_inner_lrs,
@@ -69,8 +69,9 @@ class MAML:
 
         # construct feature extractor
         in_channels = NUM_INPUT_CHANNELS
-        for i in range(NUM_CONV_LAYERS):
-            if i == NUM_CONV_LAYERS - 1:
+        self.aug_net_size = aug_net_size
+        for i in range(self.aug_net_size):
+            if i == aug_net_size - 1:
                 meta_parameters[f'conv{i}'] = nn.init.constant_(
                     torch.empty(
                         NUM_INPUT_CHANNELS,
@@ -80,7 +81,7 @@ class MAML:
                         requires_grad=True,
                         device=DEVICE
                     ),
-                    0.000001
+                    0.0000001
                 ) 
 
                 meta_parameters[f'b{i}'] = nn.init.zeros_(
@@ -90,7 +91,6 @@ class MAML:
                         device=DEVICE
                     )
                 )
-                in_channels = NUM_HIDDEN_CHANNELS
             else:
                 meta_parameters[f'conv{i}']= nn.init.constant_(
                     torch.empty(
@@ -101,7 +101,7 @@ class MAML:
                         requires_grad=True,
                         device=DEVICE
                     ),
-                    0.000001
+                    0.0000001
                 ) 
 
                 meta_parameters[f'b{i}'] = nn.init.zeros_(
@@ -161,7 +161,7 @@ class MAML:
                 in_channels = NUM_HIDDEN_CHANNELS
 
 
-            inner_params[f'w{NUM_CONV_LAYERS}'] = nn.init.xavier_uniform_(
+            inner_params[f'w{INNER_MODEL_SIZE}'] = nn.init.xavier_uniform_(
                 torch.empty(
                     num_outputs,
                     NUM_HIDDEN_CHANNELS, # figure out shape of this 
@@ -169,7 +169,7 @@ class MAML:
                     device=DEVICE
                 )
             )
-            inner_params[f'b{NUM_CONV_LAYERS}'] = nn.init.zeros_(
+            inner_params[f'b{INNER_MODEL_SIZE}'] = nn.init.zeros_(
                 torch.empty(
                     num_outputs,
                     requires_grad=True,
@@ -213,7 +213,7 @@ class MAML:
         """
         x = images
         res = x
-        for i in range(NUM_CONV_LAYERS):
+        for i in range(self.aug_net_size):
 
             x = F.conv2d(
                 input=x,
@@ -240,7 +240,7 @@ class MAML:
                 )
             # x = F.batch_norm(x, None, None, training=True)
             x = F.relu(x)
-        x = x + res
+        x = x*0 + res
         return x
 
     def _inner_forward(self, images, parameters):
@@ -565,6 +565,7 @@ def main(args):
         args.num_way,
         args.num_inner_steps,
         args.pretrain,
+        args.aug_net_size,
         args.num_augs,
         args.inner_lr,
         args.learn_inner_lrs,
@@ -640,6 +641,8 @@ if __name__ == '__main__':
                         help='number of inner-loop updates')
     parser.add_argument('--pretrain', type=bool, default=False,
                         help='whether to use pretrain model as inner loop')  
+    parser.add_argument('--aug_net_size', type=int, default=1,
+                        help='how many conv layers in augmentation network')       
     parser.add_argument('--num_augs', type=int, default=1,
                         help='how many sets of augmentations')                       
     parser.add_argument('--inner_lr', type=float, default=0.4,
