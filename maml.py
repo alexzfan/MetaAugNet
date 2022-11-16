@@ -117,8 +117,8 @@ class MAML:
             self.pretrain_model =nn.Sequential(*list(squeezenet1_1(weights=SqueezeNet1_1_Weights.IMAGENET1K_V1).children())[:-1]).to(DEVICE)
             for param in self.pretrain_model.parameters():
                 param.requires_grad = False
-            self.inner_params = {}
-            self.inner_params[f'w{INNER_MODEL_SIZE}'] = nn.init.xavier_uniform_(
+            inner_params = {}
+            inner_params[f'w{INNER_MODEL_SIZE}'] = nn.init.xavier_uniform_(
                 torch.empty(
                     num_outputs,
                     NUM_HIDDEN_CHANNELS, # figure out shape of this 
@@ -126,7 +126,7 @@ class MAML:
                     device=DEVICE
                 )
             )
-            self.inner_params[f'b{INNER_MODEL_SIZE}'] = nn.init.zeros_(
+            inner_params[f'b{INNER_MODEL_SIZE}'] = nn.init.zeros_(
                 torch.empty(
                     num_outputs,
                     requires_grad=True,
@@ -135,7 +135,7 @@ class MAML:
             )
         else:
             # construct linear head layer
-            self.inner_params = {}
+            inner_params = {}
             for i in range(INNER_MODEL_SIZE):
                 self.inner_params[f'conv{i}']= nn.init.xavier_uniform_(
                     torch.empty(
@@ -158,7 +158,7 @@ class MAML:
                 in_channels = NUM_HIDDEN_CHANNELS
 
 
-            self.inner_params[f'w{NUM_CONV_LAYERS}'] = nn.init.xavier_uniform_(
+            inner_params[f'w{NUM_CONV_LAYERS}'] = nn.init.xavier_uniform_(
                 torch.empty(
                     num_outputs,
                     NUM_HIDDEN_CHANNELS, # figure out shape of this 
@@ -166,7 +166,7 @@ class MAML:
                     device=DEVICE
                 )
             )
-            self.inner_params[f'b{NUM_CONV_LAYERS}'] = nn.init.zeros_(
+            inner_params[f'b{NUM_CONV_LAYERS}'] = nn.init.zeros_(
                 torch.empty(
                     num_outputs,
                     requires_grad=True,
@@ -174,6 +174,7 @@ class MAML:
                 )
             )
         self._meta_parameters = meta_parameters
+        self._inner_params = inner_params
         self._num_inner_steps = num_inner_steps
         self.num_augs = num_augs
         self._inner_lrs = {
@@ -186,7 +187,7 @@ class MAML:
         self._optimizer = torch.optim.Adam(
             list(self._meta_parameters.values()) +
             list(self._inner_lrs.values()) +
-            list(self.inner_params.values()),
+            list(self._inner_params.values()),
             lr=self._outer_lr,
             weight_decay = l2_wd
         )
@@ -298,7 +299,7 @@ class MAML:
         accuracies = []
         inner_parameters = {
             k: torch.clone(v)
-            for k, v in self.inner_params.items()
+            for k, v in self._inner_params.items()
         } 
 
         for i in range(self._num_inner_steps):
