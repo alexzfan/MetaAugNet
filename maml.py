@@ -137,7 +137,7 @@ class MAML:
             # construct linear head layer
             inner_params = {}
             for i in range(INNER_MODEL_SIZE):
-                self.inner_params[f'conv{i}']= nn.init.xavier_uniform_(
+                inner_params[f'conv{i}']= nn.init.xavier_uniform_(
                     torch.empty(
                         NUM_HIDDEN_CHANNELS,
                         in_channels,
@@ -148,7 +148,7 @@ class MAML:
                     )
                 )
 
-                self.inner_params[f'b{i}'] = nn.init.zeros_(
+                inner_params[f'b{i}'] = nn.init.zeros_(
                     torch.empty(
                         NUM_HIDDEN_CHANNELS,
                         requires_grad=True,
