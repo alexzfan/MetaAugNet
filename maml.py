@@ -187,7 +187,7 @@ class MAML:
         
         self._outer_lr = outer_lr
         self._optimizer = torch.optim.Adam(
-            # list(self._meta_parameters.values())+
+            list(self._meta_parameters.values())+
             list(self._inner_params.values()) +
             list(self._inner_lrs.values()) ,
             lr=self._outer_lr,
@@ -214,7 +214,6 @@ class MAML:
         x = images
         res = x
         for i in range(self.aug_net_size):
-
             x = F.conv2d(
                 input=x,
                 weight=parameters[f'conv{i}'],
@@ -238,9 +237,9 @@ class MAML:
                     mean = 0,
                     std = 1
                 )
-            # x = F.batch_norm(x, None, None, training=True)
+            x = F.layer_norm(x, x.shape[1:])
             x = F.relu(x)
-        x = x*0 + res
+        x = x + res
         return x
 
     def _inner_forward(self, images, parameters):
@@ -353,18 +352,16 @@ class MAML:
 
             # does the "augmentation"
 
-            # support_augs = []
-            # labels_temp = []
-            # for i in range(self.num_augs):
-            #     support_aug = self._augmentation_forward(images_support, self._meta_parameters, train)
-            #     if self.pretrain and NUM_INPUT_CHANNELS != RESNET_CHANNEL:
-            #         support_aug = util.increase_image_channels(support_aug, RESNET_CHANNEL, DEVICE)
-            #     support_augs.append(support_aug)
-            #     labels_temp.append(labels_support)
-            # support_out = torch.cat(support_augs, dim = 0)
-            # labels_support = torch.cat(labels_temp, dim = 0)
-
-            support_out = images_support
+            support_augs = []
+            labels_temp = []
+            for i in range(self.num_augs):
+                support_aug = self._augmentation_forward(images_support, self._meta_parameters, train)
+                if self.pretrain and NUM_INPUT_CHANNELS != RESNET_CHANNEL:
+                    support_aug = util.increase_image_channels(support_aug, RESNET_CHANNEL, DEVICE)
+                support_augs.append(support_aug)
+                labels_temp.append(labels_support)
+            support_out = torch.cat(support_augs, dim = 0)
+            labels_support = torch.cat(labels_temp, dim = 0)
 
             # run in inner loop for resnet feature extraction and meta training
             param, acc = self._inner_loop(support_out, labels_support, train)
