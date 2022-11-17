@@ -9,7 +9,7 @@ from torch import nn
 import torch.nn.functional as F
 from torch import autograd
 from torch.utils import tensorboard
-from torchvision.models import resnet50, ResNet50_Weights
+from torchvision.models import squeezenet1_1, SqueezeNet1_1_Weights
 
 import omniglot
 import util
@@ -19,15 +19,14 @@ import random
 NUM_INPUT_CHANNELS = 1
 NUM_HIDDEN_CHANNELS = 64
 KERNEL_SIZE = 3
-NUM_CONV_LAYERS = 4
 DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
 SUMMARY_INTERVAL = 10
 SAVE_INTERVAL = 100
 LOG_INTERVAL = 10
 VAL_INTERVAL = LOG_INTERVAL * 5
 NUM_TEST_TASKS = 600
-
-
+RESNET_CHANNEL = 3
+INNER_MODEL_SIZE = 4
 class MAML:
     """Trains and assesses a MAML."""
 
@@ -35,22 +34,24 @@ class MAML:
             self,
             num_outputs,
             num_inner_steps,
+            pretrain,
+            aug_net_size,
+            num_augs,
             inner_lr,
             learn_inner_lrs,
             outer_lr,
-            log_dir
+            l2_wd,
+            log_dir,
+            debug
     ):
         """Inits MAML.
-
         The network consists of four convolutional blocks followed by a linear
         head layer. Each convolutional block comprises a convolution layer, a
         batch normalization layer, and ReLU activation.
-
         Note that unlike conventional use, batch normalization is always done
         with batch statistics, regardless of whether we are training or
         evaluating. This technically makes meta-learning transductive, as
         opposed to inductive.
-
         Args:
             num_outputs (int): dimensionality of output, i.e. number of classes
                 in a task
@@ -62,32 +63,35 @@ class MAML:
             outer_lr (float): learning rate for outer-loop optimization
             log_dir (str): path to logging directory
         """
+        self.debug = debug
         meta_parameters = {}
 
         # construct feature extractor
         in_channels = NUM_INPUT_CHANNELS
-        for i in range(NUM_CONV_LAYERS):
-            if i == NUM_CONV_LAYERS - 1:
-                meta_parameters[f'conv{i}'] = nn.init.xavier_uniform_(
+        self.aug_net_size = aug_net_size
+        for i in range(self.aug_net_size):
+            if i == aug_net_size - 1:
+                meta_parameters[f'conv{i}'] = nn.init.constant_(
                     torch.empty(
-                        3,
+                        NUM_INPUT_CHANNELS,
                         in_channels,
                         KERNEL_SIZE,
                         KERNEL_SIZE,
                         requires_grad=True,
                         device=DEVICE
-                    )
-                )
+                    ),
+                    0.0000001
+                ) 
+
                 meta_parameters[f'b{i}'] = nn.init.zeros_(
                     torch.empty(
-                        3,
+                        NUM_INPUT_CHANNELS,
                         requires_grad=True,
                         device=DEVICE
                     )
                 )
-                in_channels = NUM_HIDDEN_CHANNELS
             else:
-                meta_parameters[f'conv{i}'] = nn.init.xavier_uniform_(
+                meta_parameters[f'conv{i}']= nn.init.constant_(
                     torch.empty(
                         NUM_HIDDEN_CHANNELS,
                         in_channels,
@@ -95,8 +99,10 @@ class MAML:
                         KERNEL_SIZE,
                         requires_grad=True,
                         device=DEVICE
-                    )
-                )
+                    ),
+                    0.0000001
+                ) 
+
                 meta_parameters[f'b{i}'] = nn.init.zeros_(
                     torch.empty(
                         NUM_HIDDEN_CHANNELS,
@@ -106,107 +112,183 @@ class MAML:
                 )
                 in_channels = NUM_HIDDEN_CHANNELS
 
-        # make resnet pretrained feature extraction and freeze
-        self.resnet_model =nn.Sequential(*list(resnet50(weights=ResNet50_Weights.IMAGENET1K_V2).children())[:-2]).to(DEVICE)
-        for param in self.resnet_model.parameters():
-            param.requires_grad = True
-
-        # construct linear head layer
-        self.linear_head_param = {}
-        self.linear_head_param[f'w{NUM_CONV_LAYERS}'] = nn.init.xavier_uniform_(
-            torch.empty(
-                num_outputs,
-                2048, # figure out shape of this 
-                requires_grad=True,
-                device=DEVICE
+        # make inner model
+        self.pretrain = pretrain
+        if self.pretrain:
+            self.pretrain_model =nn.Sequential(*list(squeezenet1_1(weights=SqueezeNet1_1_Weights.IMAGENET1K_V1).children())[:-1]).to(DEVICE)
+            for param in self.pretrain_model.parameters():
+                param.requires_grad = False
+            inner_params = {}
+            inner_params[f'w{INNER_MODEL_SIZE}'] = nn.init.xavier_uniform_(
+                torch.empty(
+                    num_outputs,
+                    NUM_HIDDEN_CHANNELS, # figure out shape of this 
+                    requires_grad=True,
+                    device=DEVICE
+                )
             )
-        )
-        self.linear_head_param[f'b{NUM_CONV_LAYERS}'] = nn.init.zeros_(
-            torch.empty(
-                num_outputs,
-                requires_grad=True,
-                device=DEVICE
+            inner_params[f'b{INNER_MODEL_SIZE}'] = nn.init.zeros_(
+                torch.empty(
+                    num_outputs,
+                    requires_grad=True,
+                    device=DEVICE
+                )
             )
-        )
+        else:
+            # construct linear head layer
+            inner_params = {}
+            in_channels = NUM_INPUT_CHANNELS
+            for i in range(INNER_MODEL_SIZE):
+                inner_params[f'conv{i}']= nn.init.xavier_uniform_(
+                    torch.empty(
+                        NUM_HIDDEN_CHANNELS,
+                        in_channels,
+                        KERNEL_SIZE,
+                        KERNEL_SIZE,
+                        requires_grad=True,
+                        device=DEVICE
+                    )
+                )
 
+                inner_params[f'b{i}'] = nn.init.zeros_(
+                    torch.empty(
+                        NUM_HIDDEN_CHANNELS,
+                        requires_grad=True,
+                        device=DEVICE
+                    )
+                )
+                in_channels = NUM_HIDDEN_CHANNELS
+
+
+            inner_params[f'w{INNER_MODEL_SIZE}'] = nn.init.xavier_uniform_(
+                torch.empty(
+                    num_outputs,
+                    NUM_HIDDEN_CHANNELS, # figure out shape of this 
+                    requires_grad=True,
+                    device=DEVICE
+                )
+            )
+            inner_params[f'b{INNER_MODEL_SIZE}'] = nn.init.zeros_(
+                torch.empty(
+                    num_outputs,
+                    requires_grad=True,
+                    device=DEVICE
+                )
+            )
         self._meta_parameters = meta_parameters
+        self._inner_params = inner_params
         self._num_inner_steps = num_inner_steps
-
+        self.num_augs = num_augs
         self._inner_lrs = {
             k: torch.tensor(inner_lr, requires_grad=learn_inner_lrs)
-            for k in self.linear_head_param.keys()
+            for k in self._inner_params.keys()
         }
         
         self._outer_lr = outer_lr
-
         self._optimizer = torch.optim.Adam(
-            list(self._meta_parameters.values()) +
-            list(self._inner_lrs.values()),
+            list(self._meta_parameters.values())+
+            list(self._inner_params.values()) +
+            list(self._inner_lrs.values()) ,
             lr=self._outer_lr,
-            weight_decay = 1e-05
+            weight_decay = l2_wd
         )
         self._log_dir = log_dir
         os.makedirs(self._log_dir, exist_ok=True)
 
         self._start_train_step = 0
 
-    def _forward(self, images, parameters):
+    def _augmentation_forward(self, images, parameters, train):
         """Computes predicted classification logits.
-
         Args:
             images (Tensor): batch of Omniglot images
                 shape (num_images, channels, height, width)
             parameters (dict[str, Tensor]): parameters to use for
                 the computation
-
         Returns:
             a Tensor consisting of a batch of logits
                 shape (num_images, classes)
         """
         x = images
-        for i in range(NUM_CONV_LAYERS):
-            # inject noise into the layers randomly
-
+        res = x
+        for i in range(self.aug_net_size):
             x = F.conv2d(
                 input=x,
                 weight=parameters[f'conv{i}'],
                 bias=parameters[f'b{i}'],
                 stride=1,
                 padding='same'
-            )
-            if random.uniform(0,1) < 0.1:
-                x += nn.init.normal_(
-                torch.empty(
-                    images.size(0),
-                    parameters[f'conv{i}'].size(0),
-                    images.size(2),
-                    images.size(3),
-                    requires_grad=False,
-                    device=DEVICE
-                ),
-                mean = torch.mean(x).item(),
-                std = torch.std(x).item()
-            )
-            x = F.batch_norm(x, None, None, training=True)
+            ) 
+
+            # applies noise on x
+            if random.uniform(0,1) < 0.2:
+                
+                x = x + nn.init.normal_(
+                    torch.empty(
+                        images.size(0),
+                        parameters[f'conv{i}'].size(0),
+                        images.size(2),
+                        images.size(3),
+                        requires_grad=False,
+                        device=DEVICE
+                    ),
+                    mean = 0,
+                    std = 1
+                )
+            x = F.layer_norm(x, x.shape[1:])
             x = F.relu(x)
-        # x = torch.mean(x, dim=[2, 3])
-        # return F.linear(
-        #     input=x,
-        #     weight=parameters[f'w{NUM_CONV_LAYERS}'],
-        #     bias=parameters[f'b{NUM_CONV_LAYERS}']
-        # )
+        if self.debug:
+            x = x * 0 + res
+        else:
+            x = x + res
+        return x
+
+    def _inner_forward(self, images, parameters):
+        """Computes predicted classification logits.
+        Args:
+            images (Tensor): batch of Omniglot images
+                shape (num_images, channels, height, width)
+            parameters (dict[str, Tensor]): parameters to use for
+                the computation
+        Returns:
+            a Tensor consisting of a batch of logits
+                shape (num_images, classes)
+        """
+        x = images
+        if self.pretrain:
+            x = self.pretrain_model.eval(x).squeeze()
+            x = F.linear(
+                input = x,
+                weight = parameters[f'w{INNER_MODEL_SIZE}'],
+                bias = parameters[f'b{INNER_MODEL_SIZE}']
+            )
+        else:
+            for i in range(INNER_MODEL_SIZE):
+
+                x = F.conv2d(
+                    input=x,
+                    weight=parameters[f'conv{i}'],
+                    bias=parameters[f'b{i}'],
+                    stride=1,
+                    padding='same'
+                ) 
+                x = F.batch_norm(x, None, None, training = True)
+                x = F.relu(x)
+            x = torch.mean(x, dim = [2,3])
+            x = F.linear(
+                input = x,
+                weight = parameters[f'w{INNER_MODEL_SIZE}'],
+                bias = parameters[f'b{INNER_MODEL_SIZE}']
+            )
         return x
 
     def _inner_loop(self, images, labels, train):
         """Computes the adapted network parameters via the MAML inner loop.
-
         Args:
             images (Tensor): task support set inputs
                 shape (num_images, channels, height, width)
             labels (Tensor): task support set outputs
                 shape (num_images,)
             train (bool): whether we are training or evaluating
-
         Returns:
             parameters (dict[str, Tensor]): adapted network parameters
             accuracies (list[float]): support set accuracy over the course of
@@ -215,17 +297,14 @@ class MAML:
         accuracies = []
         inner_parameters = {
             k: torch.clone(v)
-            for k, v in self.linear_head_param.items()
+            for k, v in self._inner_params.items()
         } 
 
         for i in range(self._num_inner_steps):
             # run resnet on the convnet output
-            out = self.resnet_model(images).squeeze()
-            out = F.linear(
-                input = out,
-                weight = inner_parameters[f'w{NUM_CONV_LAYERS}'],
-                bias = inner_parameters[f'b{NUM_CONV_LAYERS}']
-            )
+
+            out = self._inner_forward(images, inner_parameters)
+
             # get the loss from resnet output
             loss = F.cross_entropy(out, labels)
             accuracies.append(util.score(out, labels))
@@ -237,29 +316,16 @@ class MAML:
                 inner_parameters[k] = inner_parameters[k] - self._inner_lrs[k]*d_loss[i]
 
         # last run on the fully adapted params
-        out = self.resnet_model(images).squeeze()
-        out = F.linear(
-                input = out,
-                weight = inner_parameters[f'w{NUM_CONV_LAYERS}'],
-                bias = inner_parameters[f'b{NUM_CONV_LAYERS}']
-            )
+        out = self._inner_forward(images, inner_parameters)
         accuracies.append(util.score(out, labels))
 
-            
-        
-
-        # ********************************************************
-        # ******************* YOUR CODE HERE *********************
-        # ********************************************************
         return inner_parameters, accuracies
 
     def _outer_step(self, task_batch, train):
         """Computes the MAML loss and metrics on a batch of tasks.
-
         Args:
             task_batch (tuple): batch of tasks from an Omniglot DataLoader
             train (bool): whether we are training or evaluating
-
         Returns:
             outer_loss (Tensor): mean MAML loss over the batch, scalar
             accuracies_support (ndarray): support set accuracy over the
@@ -279,19 +345,24 @@ class MAML:
             labels_query = labels_query.to(DEVICE)
 
             # does the "augmentation"
-            support_out = self._forward(images_support, self._meta_parameters)
+
+            support_augs = []
+            labels_temp = []
+            for i in range(self.num_augs):
+                support_aug = self._augmentation_forward(images_support, self._meta_parameters, train)
+                if self.pretrain and NUM_INPUT_CHANNELS != RESNET_CHANNEL:
+                    support_aug = util.increase_image_channels(support_aug, RESNET_CHANNEL, DEVICE)
+                support_augs.append(support_aug)
+                labels_temp.append(labels_support)
+            support_out = torch.cat(support_augs, dim = 0)
+            labels_support = torch.cat(labels_temp, dim = 0)
 
             # run in inner loop for resnet feature extraction and meta training
             param, acc = self._inner_loop(support_out, labels_support, train)
             accuracies_support_batch.append(acc)
 
-            query_out = self._forward(images_query, self._meta_parameters)
-            query_out = self.resnet_model(query_out).squeeze()
-            query_out = F.linear(
-                input = query_out,
-                weight = param[f'w{NUM_CONV_LAYERS}'],
-                bias = param[f'b{NUM_CONV_LAYERS}']
-            )
+            # run adapted linear on the query
+            query_out = self._inner_forward(images_query, param)
 
             loss = F.cross_entropy(query_out, labels_query)
             accuracy_query_batch.append(util.score(query_out, labels_query))
@@ -313,11 +384,9 @@ class MAML:
 
     def train(self, dataloader_train, dataloader_val, writer):
         """Train the MAML.
-
         Consumes dataloader_train to optimize MAML meta-parameters
         while periodically validating on dataloader_val, logging metrics, and
         saving checkpoints.
-
         Args:
             dataloader_train (DataLoader): loader for train tasks
             dataloader_val (DataLoader): loader for validation tasks
@@ -418,7 +487,6 @@ class MAML:
 
     def test(self, dataloader_test):
         """Evaluate the MAML on test tasks.
-
         Args:
             dataloader_test (DataLoader): loader for test tasks
         """
@@ -437,10 +505,8 @@ class MAML:
 
     def load(self, checkpoint_step):
         """Loads a checkpoint.
-
         Args:
             checkpoint_step (int): iteration of checkpoint to load
-
         Raises:
             ValueError: if checkpoint for checkpoint_step is not found
         """
@@ -462,7 +528,6 @@ class MAML:
 
     def _save(self, checkpoint_step):
         """Saves parameters and optimizer state_dict as a checkpoint.
-
         Args:
             checkpoint_step (int): iteration to label checkpoint with
         """
@@ -486,10 +551,15 @@ def main(args):
     maml = MAML(
         args.num_way,
         args.num_inner_steps,
+        args.pretrain,
+        args.aug_net_size,
+        args.num_augs,
         args.inner_lr,
         args.learn_inner_lrs,
         args.outer_lr,
-        log_dir
+        args.l2_wd,
+        log_dir,
+        args.debug
     )
 
     if args.checkpoint_step > -1:
@@ -557,12 +627,20 @@ if __name__ == '__main__':
                         help='number of query examples per class in a task')
     parser.add_argument('--num_inner_steps', type=int, default=1,
                         help='number of inner-loop updates')
+    parser.add_argument('--pretrain', type=bool, default=False,
+                        help='whether to use pretrain model as inner loop')  
+    parser.add_argument('--aug_net_size', type=int, default=1,
+                        help='how many conv layers in augmentation network')       
+    parser.add_argument('--num_augs', type=int, default=1,
+                        help='how many sets of augmentations')                       
     parser.add_argument('--inner_lr', type=float, default=0.4,
                         help='inner-loop learning rate initialization')
     parser.add_argument('--learn_inner_lrs', default=False, action='store_true',
                         help='whether to optimize inner-loop learning rates')
     parser.add_argument('--outer_lr', type=float, default=0.001,
                         help='outer-loop learning rate')
+    parser.add_argument('--l2_wd', type=float, default=1e-4,
+                        help='l2 weight decay for outer loop')            
     parser.add_argument('--batch_size', type=int, default=16,
                         help='number of tasks per outer-loop update')
     parser.add_argument('--num_train_iterations', type=int, default=15000,
@@ -572,6 +650,8 @@ if __name__ == '__main__':
     parser.add_argument('--checkpoint_step', type=int, default=-1,
                         help=('checkpoint iteration to load for resuming '
                               'training, or for evaluation (-1 is ignored)'))
+    parser.add_argument('--debug', default=False, action = 'store_true',
+                        help='debug by reducing to base maml')  
 
     main_args = parser.parse_args()
     main(main_args)
