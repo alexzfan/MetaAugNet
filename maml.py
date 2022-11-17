@@ -41,7 +41,8 @@ class MAML:
             learn_inner_lrs,
             outer_lr,
             l2_wd,
-            log_dir
+            log_dir,
+            debug
     ):
         """Inits MAML.
 
@@ -65,6 +66,7 @@ class MAML:
             outer_lr (float): learning rate for outer-loop optimization
             log_dir (str): path to logging directory
         """
+        self.debug = debug
         meta_parameters = {}
 
         # construct feature extractor
@@ -239,7 +241,10 @@ class MAML:
                 )
             x = F.layer_norm(x, x.shape[1:])
             x = F.relu(x)
-        x = x + res
+        if self.debug:
+            x = x * 0 + res
+        else:
+            x = x + res
         return x
 
     def _inner_forward(self, images, parameters):
@@ -570,7 +575,8 @@ def main(args):
         args.learn_inner_lrs,
         args.outer_lr,
         args.l2_wd,
-        log_dir
+        log_dir,
+        args.debug
     )
 
     if args.checkpoint_step > -1:
@@ -661,6 +667,8 @@ if __name__ == '__main__':
     parser.add_argument('--checkpoint_step', type=int, default=-1,
                         help=('checkpoint iteration to load for resuming '
                               'training, or for evaluation (-1 is ignored)'))
+    parser.add_argument('--debug', default=False, action = 'store_true'
+                        help='debug by reducing to base maml')  
 
     main_args = parser.parse_args()
     main(main_args)
