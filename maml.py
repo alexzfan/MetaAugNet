@@ -9,12 +9,15 @@ from torch import nn
 import torch.nn.functional as F
 from torch import autograd
 from torch.utils import tensorboard
-from torchvision.models import squeezenet1_1, SqueezeNet1_1_Weights
+#from torchvision.models import squeezenet1_1, SqueezeNet1_1_Weights
 
 import omniglot
 import util
 import sys
 import random
+
+import matplotlib.pyplot as plt
+import pdb
 
 NUM_INPUT_CHANNELS = 1
 NUM_HIDDEN_CHANNELS = 64
@@ -209,7 +212,7 @@ class MAML:
                 shape (num_images, classes)
         """
         x = images
-        res = x
+        res = x # original images - add to augmented imgs
         for i in range(self.aug_net_size):
             x = F.conv2d(
                 input=x,
@@ -221,7 +224,6 @@ class MAML:
 
             # applies noise on x
             if random.uniform(0,1) < 0.2:
-                
                 x = x + nn.init.normal_(
                     torch.empty(
                         images.size(0),
@@ -232,7 +234,7 @@ class MAML:
                         device=DEVICE
                     ),
                     mean = 0,
-                    std = 1
+                    std = 1 # experiment with 0.25, 0.5, 1.5, 2
                 )
             x = F.layer_norm(x, x.shape[1:])
             x = F.relu(x)
@@ -255,7 +257,7 @@ class MAML:
         """
         x = images
         if self.pretrain:
-            x = self.pretrain_model.eval(x).squeeze()
+            x = self.pretrain_model.eval(x).squeeze() # turn off batchnorm with .eval()
             x = F.linear(
                 input = x,
                 weight = parameters[f'w{INNER_MODEL_SIZE}'],
@@ -263,7 +265,6 @@ class MAML:
             )
         else:
             for i in range(INNER_MODEL_SIZE):
-
                 x = F.conv2d(
                     input=x,
                     weight=parameters[f'conv{i}'],
@@ -321,7 +322,7 @@ class MAML:
 
         return inner_parameters, accuracies
 
-    def _outer_step(self, task_batch, train):
+    def _outer_step(self, task_batch, train, step=None):
         """Computes the MAML loss and metrics on a batch of tasks.
         Args:
             task_batch (tuple): batch of tasks from an Omniglot DataLoader
@@ -337,6 +338,15 @@ class MAML:
         outer_loss_batch = []
         accuracies_support_batch = []
         accuracy_query_batch = []
+
+        if step is not None: #visualize support imgs
+            plt.figure()
+            fig, ax = plt.subplots(2,3) 
+            for j in range(len(support_aug)):
+                ax[0+(j//3), j%3].imshow(support_aug[j,:,:,:].permute(1,2,0).detach().numpy())
+            plt.savefig("aug_imgs/{}-{}-{}.png".format(step,i,j))
+            plt.close()
+
         for task in task_batch:
             images_support, labels_support, images_query, labels_query = task
             images_support = images_support.to(DEVICE)
@@ -354,6 +364,15 @@ class MAML:
                     support_aug = util.increase_image_channels(support_aug, RESNET_CHANNEL, DEVICE)
                 support_augs.append(support_aug)
                 labels_temp.append(labels_support)
+            
+            if step is not None:
+                plt.figure()
+                fig, ax = plt.subplots(2,3) 
+                for j in range(len(support_aug)):
+                    ax[0+(j//3), j%3].imshow(support_aug[j,:,:,:].permute(1,2,0).detach().numpy())
+                plt.savefig("aug_imgs/{}-{}-{}.png".format(step,i,j))
+                plt.close()
+
             support_out = torch.cat(support_augs, dim = 0)
             labels_support = torch.cat(labels_temp, dim = 0)
 
@@ -367,9 +386,6 @@ class MAML:
             loss = F.cross_entropy(query_out, labels_query)
             accuracy_query_batch.append(util.score(query_out, labels_query))
             outer_loss_batch.append(loss)
-
-
-
 
             # ********************************************************
             # ******************* YOUR CODE HERE *********************
@@ -398,8 +414,9 @@ class MAML:
                 start=self._start_train_step
         ):
             self._optimizer.zero_grad()
+            print(i_step)
             outer_loss, accuracies_support, accuracy_query = (
-                self._outer_step(task_batch, train=True)
+                self._outer_step(task_batch, train=True, step=i_step)
             )
             outer_loss.backward()
             self._optimizer.step()
