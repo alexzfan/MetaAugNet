@@ -11,6 +11,7 @@ from torch.utils.data import dataset, sampler, dataloader
 from torchvision.transforms import Compose, ToTensor, Resize, Normalize
 from torchvision.models import squeezenet1_1, SqueezeNet1_1_Weights
 import sys
+from PIL import Image
 
 NUM_TRAIN_CLASSES = 600
 NUM_VAL_CLASSES = 200
@@ -28,7 +29,7 @@ def load_image(file_path):
         a Tensor containing image data
             shape (1, 28, 28)
     """
-    x = imageio.imread(file_path)
+    x = Image.open(file_path)
     preprocess = SqueezeNet1_1_Weights.IMAGENET1K_V1.transforms()
     return preprocess(x)
 
