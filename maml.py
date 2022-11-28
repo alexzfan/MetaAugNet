@@ -12,7 +12,7 @@ from torch.utils import tensorboard
 from torchvision.models import squeezenet1_1, SqueezeNet1_1_Weights
 
 import omniglot
-import imagenet_tiny
+import imagenet_tiny as imagenet
 import util
 import sys
 import random
