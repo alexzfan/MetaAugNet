@@ -34,7 +34,7 @@ def load_image(file_path):
         x = np.repeat(x[:, :, np.newaxis], 3, -1)
     assert len(x.shape) == 3
     x = np.moveaxis(x, 2, 0)
-    x = torch.tensor(x, dtype=torch.float32)
+    x = torch.tensor(x.copy(), dtype=torch.float32)
 
     preprocess = SqueezeNet1_1_Weights.IMAGENET1K_V1.transforms()
     return preprocess(x)
