@@ -69,7 +69,7 @@ class ImagenetDataset(dataset.Dataset):
             NUM_TRAIN_CLASSES + NUM_VAL_CLASSES + NUM_TEST_CLASSES
         )
 
-        # shuffle characters
+        # shuffle images
         np.random.default_rng(0).shuffle(self._image_folders)
 
         # check problem arguments
@@ -101,7 +101,7 @@ class ImagenetDataset(dataset.Dataset):
         for label, class_idx in enumerate(class_idxs):
             # get a class's examples and sample from them
             all_file_paths = glob.glob(
-                os.path.join(self._character_folders[class_idx], '*.png')
+                os.path.join(self._image_folders[class_idx], '*.png')
             )
             sampled_file_paths = np.random.default_rng().choice(
                 all_file_paths,
