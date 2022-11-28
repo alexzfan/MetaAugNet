@@ -17,7 +17,7 @@ import util
 import sys
 import random
 
-NUM_HIDDEN_CHANNELS = 64
+NUM_HIDDEN_CHANNELS = 32
 KERNEL_SIZE = 3
 DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
 SUMMARY_INTERVAL = 10
@@ -359,7 +359,6 @@ class MAML:
             labels_query = labels_query.to(DEVICE)
 
             # does the "augmentation"
-            print(images_support.shape)
             support_augs = []
             labels_temp = []
             for i in range(self.num_augs):
@@ -596,7 +595,7 @@ def main(args):
             f'Training on {num_training_tasks} tasks with composition: '
             f'num_way={args.num_way}, '
             f'num_support={args.num_support}, '
-            f'num_query={args.num_query},'
+            f'num_query={args.num_query}, '
             f'num_augs={args.num_augs}'
         )
         if args.dataset == "omniglot":
