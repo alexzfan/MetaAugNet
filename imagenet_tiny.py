@@ -1,9 +1,9 @@
 """Dataloading for Imagenet Tiny."""
 import os
 import glob
+import gzip
 
-import zipfile
-import datasets
+from kaggle.api.kaggle_api_extended import KaggleApi
 import imageio
 import numpy as np
 import torch
@@ -42,8 +42,7 @@ class ImagenetDataset(dataset.Dataset):
     pairs.
     """
 
-    _BASE_PATH = './imagenet_resized'
-    _IMAGENET_ZIP_PATH = './imagenet-1k/data'
+    _BASE_PATH = './ILSVRC/Data/CLS-LOC/train'
 
     def __init__(self, num_support, num_query):
         """Inits ImagenetDataset.
@@ -57,26 +56,21 @@ class ImagenetDataset(dataset.Dataset):
 
         # if necessary, download the Omniglot dataset
         if not os.path.isdir(self._BASE_PATH):
-            if not os.path.isdir(self._IMAGENET_ZIP_PATH):
-                raise Exception("Imagenet data zips not found, download via git clone https://huggingface.co/datasets/imagenet-1k")
-            else:
-                for i in range(5):
-                    with zipfile.ZipFile(os.path.join(self._IMAGENET_ZIP_PATH, \
-                                                    "train_images_{}.tar.gz".format(i)), "r") as zip_ref:
-                        print("Extracting Zip File {}".format(i))
-                        zip_ref.extractall(self._BASE_PATH)
+            api = KaggleApi()
+            api.authenticate()
+            api.competition_download_files('imagenet-object-localization-challenge', path='./')
             sys.exit()
 
 
-        # get all character folders
-        self._character_folders = glob.glob(
+        # get all image folders
+        self._image_folders = glob.glob(
             os.path.join(self._BASE_PATH, '*/*/'))
-        assert len(self._character_folders) == (
+        assert len(self._image_folders) == (
             NUM_TRAIN_CLASSES + NUM_VAL_CLASSES + NUM_TEST_CLASSES
         )
 
         # shuffle characters
-        np.random.default_rng(0).shuffle(self._character_folders)
+        np.random.default_rng(0).shuffle(self._image_folders)
 
         # check problem arguments
         assert num_support + num_query <= NUM_SAMPLES_PER_CLASS
