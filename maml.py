@@ -17,7 +17,6 @@ import util
 import sys
 import random
 
-NUM_INPUT_CHANNELS = 1
 NUM_HIDDEN_CHANNELS = 64
 KERNEL_SIZE = 3
 DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -28,11 +27,13 @@ VAL_INTERVAL = LOG_INTERVAL * 5
 NUM_TEST_TASKS = 600
 RESNET_CHANNEL = 3
 INNER_MODEL_SIZE = 4
+
 class MAML:
     """Trains and assesses a MAML."""
 
     def __init__(
             self,
+            num_input_channels,
             num_outputs,
             num_inner_steps,
             pretrain,
@@ -68,16 +69,17 @@ class MAML:
             log_dir (str): path to logging directory
         """
         self.debug = debug
+        self.num_input_channels = num_input_channels
         meta_parameters = {}
 
         # construct feature extractor
-        in_channels = NUM_INPUT_CHANNELS
+        in_channels = self.num_input_channels
         self.aug_net_size = aug_net_size
         for i in range(self.aug_net_size):
             if i == aug_net_size - 1:
                 meta_parameters[f'conv{i}'] = nn.init.constant_(
                     torch.empty(
-                        NUM_INPUT_CHANNELS,
+                        self.num_input_channels,
                         in_channels,
                         KERNEL_SIZE,
                         KERNEL_SIZE,
@@ -89,7 +91,7 @@ class MAML:
 
                 meta_parameters[f'b{i}'] = nn.init.zeros_(
                     torch.empty(
-                        NUM_INPUT_CHANNELS,
+                        self.num_input_channels,
                         requires_grad=True,
                         device=DEVICE
                     )
@@ -141,7 +143,7 @@ class MAML:
         else:
             # construct linear head layer
             inner_params = {}
-            in_channels = NUM_INPUT_CHANNELS
+            in_channels = self.num_input_channels
             for i in range(INNER_MODEL_SIZE):
                 inner_params[f'conv{i}']= nn.init.xavier_uniform_(
                     torch.empty(
@@ -566,7 +568,12 @@ def main(args):
     print(f'log_dir: {log_dir}')
     writer = tensorboard.SummaryWriter(log_dir=log_dir)
 
+    if args.dataset == 'omniglot':
+        num_input_channels = 1
+    else:
+        num_input_channels = 3
     maml = MAML(
+        num_input_channels,
         args.num_way,
         args.num_inner_steps,
         args.pretrain,
