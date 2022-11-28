@@ -29,12 +29,14 @@ def load_image(file_path):
         a Tensor containing image data
             shape (1, 28, 28)
     """
-    x = imageio.imread(file_path)
-    if len(x.shape) != 3:
-        x = np.repeat(x[:, :, np.newaxis], 3, -1)
-    assert len(x.shape) == 3
-    x = np.moveaxis(x, 2, 0)
-    x = x.copy()
+    # x = imageio.imread(file_path)
+    # if len(x.shape) != 3:
+    #     x = np.repeat(x[:, :, np.newaxis], 3, -1)
+    # assert len(x.shape) == 3
+    # x = np.moveaxis(x, 2, 0)
+    # x = x.copy()
+
+    x = Image.open(file_path).convert("RGB")
 
     std_image = Compose(
             [
@@ -49,6 +51,7 @@ def load_image(file_path):
             ]
         )
     x = std_image(x)
+    print(x.shape)
     return x
 
 class ImagenetDataset(dataset.Dataset):
