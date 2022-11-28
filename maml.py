@@ -359,7 +359,7 @@ class MAML:
             labels_query = labels_query.to(DEVICE)
 
             # does the "augmentation"
-
+            print(images_support.shape)
             support_augs = []
             labels_temp = []
             for i in range(self.num_augs):
