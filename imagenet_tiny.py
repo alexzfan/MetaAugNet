@@ -41,7 +41,7 @@ def load_image(file_path):
     std_image = Compose(
             [
                 Resize(
-                    size=(64, 64)
+                    size=(48, 48)
                 ),        
                 ToTensor(),
                 Normalize(
