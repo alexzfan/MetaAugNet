@@ -29,8 +29,8 @@ def load_image(file_path):
             shape (1, 28, 28)
     """
     x = imageio.imread(file_path)
-    return SqueezeNet1_1_Weights.IMAGENET1K_V1.transforms(x)
-
+    preprocess = SqueezeNet1_1_Weights.IMAGENET1K_V1.transforms()
+    return preprocess(x)
 
 class ImagenetDataset(dataset.Dataset):
     """Omniglot dataset for meta-learning.
