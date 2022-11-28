@@ -382,9 +382,6 @@ class MAML:
             accuracy_query_batch.append(util.score(query_out, labels_query))
             outer_loss_batch.append(loss)
 
-
-
-
             # ********************************************************
             # ******************* YOUR CODE HERE *********************
             # ********************************************************
@@ -599,7 +596,8 @@ def main(args):
             f'Training on {num_training_tasks} tasks with composition: '
             f'num_way={args.num_way}, '
             f'num_support={args.num_support}, '
-            f'num_query={args.num_query}'
+            f'num_query={args.num_query},'
+            f'num_augs={args.num_augs}'
         )
         if args.dataset == "omniglot":
             dataloader_train = omniglot.get_omniglot_dataloader(
