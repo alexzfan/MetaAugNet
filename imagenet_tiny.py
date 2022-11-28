@@ -30,6 +30,8 @@ def load_image(file_path):
             shape (1, 28, 28)
     """
     x = imageio.imread(file_path)
+    if len(x.shape) != 3:
+        print(x.shape)
     assert len(x.shape) == 3
     x = np.moveaxis(x, 2, 0)
     x = torch.tensor(x, dtype=torch.float32)
