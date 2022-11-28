@@ -29,8 +29,8 @@ def load_image(file_path):
         a Tensor containing image data
             shape (1, 28, 28)
     """
-    x = imageio.imread(file_path)
-    x = torch.tensor(x, dtype=torch.float32).transpose(2,0,1)
+    x = imageio.imread(file_path).transpose(2,0,1)
+    x = torch.tensor(x, dtype=torch.float32)
 
     preprocess = SqueezeNet1_1_Weights.IMAGENET1K_V1.transforms()
     return preprocess(x)
