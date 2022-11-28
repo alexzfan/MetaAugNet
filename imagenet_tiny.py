@@ -61,7 +61,7 @@ class ImagenetDataset(dataset.Dataset):
                 raise Exception("Imagenet data zips not found, download via git clone https://huggingface.co/datasets/imagenet-1k")
             else:
                 for i in range(5):
-                    with zipfile.ZipFile(os.path.join(self._IMAGENET_ZIP_PATH, 
+                    with zipfile.ZipFile(os.path.join(self._IMAGENET_ZIP_PATH, \
                                                     "train_images_{}.tar.gz".format(i)), "r") as zip_ref:
                         print("Extracting Zip File {}".format(i))
                         zip_ref.extractall(self._BASE_PATH)
