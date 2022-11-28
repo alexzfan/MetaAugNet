@@ -17,7 +17,7 @@ import util
 import sys
 import random
 
-NUM_HIDDEN_CHANNELS = 32
+NUM_HIDDEN_CHANNELS = 64
 KERNEL_SIZE = 3
 DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
 SUMMARY_INTERVAL = 10

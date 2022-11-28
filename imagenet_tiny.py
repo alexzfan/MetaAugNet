@@ -34,7 +34,7 @@ def load_image(file_path):
         x = np.repeat(x[:, :, np.newaxis], 3, -1)
     assert len(x.shape) == 3
     x = np.moveaxis(x, 2, 0)
-    x = torch.tensor(x.copy(), dtype=torch.float32)
+    x = x.copy()
 
     std_image = Compose(
             [
