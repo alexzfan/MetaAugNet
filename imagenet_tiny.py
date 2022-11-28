@@ -64,7 +64,7 @@ class ImagenetDataset(dataset.Dataset):
 
         # get all image folders
         self._image_folders = glob.glob(
-            os.path.join(self._BASE_PATH, '*/*/'))
+            os.path.join(self._BASE_PATH, '*/'))
         assert len(self._image_folders) == (
             NUM_TRAIN_CLASSES + NUM_VAL_CLASSES + NUM_TEST_CLASSES
         )
