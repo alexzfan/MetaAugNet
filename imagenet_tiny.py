@@ -8,7 +8,8 @@ import imageio
 import numpy as np
 import torch
 from torch.utils.data import dataset, sampler, dataloader
-
+from torchvision.transforms import Compose, ToTensor, Resize, Normalize
+from torchvision.models import squeezenet1_1, SqueezeNet1_1_Weights
 import sys
 
 NUM_TRAIN_CLASSES = 600
@@ -28,9 +29,7 @@ def load_image(file_path):
             shape (1, 28, 28)
     """
     x = imageio.imread(file_path)
-    x = torch.tensor(x, dtype=torch.float32).reshape([1, 28, 28])
-    x = x / 255.0
-    return 1 - x
+    return SqueezeNet1_1_Weights.IMAGENET1K_V1.transforms(x)
 
 
 class ImagenetDataset(dataset.Dataset):
