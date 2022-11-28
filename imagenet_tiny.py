@@ -36,8 +36,20 @@ def load_image(file_path):
     x = np.moveaxis(x, 2, 0)
     x = torch.tensor(x.copy(), dtype=torch.float32)
 
-    preprocess = SqueezeNet1_1_Weights.IMAGENET1K_V1.transforms()
-    return preprocess(x)
+    std_image = Compose(
+            [
+                Resize(
+                    size=(64, 64)
+                ),        
+                ToTensor(),
+                Normalize(
+                    mean=(0.485, 0.456, 0.406), 
+                    std=(0.229, 0.224, 0.225)
+                ),
+            ]
+        )
+    x = std_image(x)
+    return x
 
 class ImagenetDataset(dataset.Dataset):
     """imagenet dataset for meta-learning.
