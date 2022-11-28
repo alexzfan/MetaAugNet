@@ -30,8 +30,8 @@ def load_image(file_path):
             shape (1, 28, 28)
     """
     x = imageio.imread(file_path)
-    x = torch.tensor(x, dtype=torch.float32)
-    print(x.shape)
+    x = torch.tensor(x, dtype=torch.float32).transpose(2,0,1)
+
     preprocess = SqueezeNet1_1_Weights.IMAGENET1K_V1.transforms()
     return preprocess(x)
 
