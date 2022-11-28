@@ -29,14 +29,16 @@ def load_image(file_path):
         a Tensor containing image data
             shape (1, 28, 28)
     """
-    x = imageio.imread(file_path).transpose(2,0,1)
+    x = imageio.imread(file_path)
+    assert len(x.shape) == 3
+    x = np.moveaxis(x, 2, 0)
     x = torch.tensor(x, dtype=torch.float32)
 
     preprocess = SqueezeNet1_1_Weights.IMAGENET1K_V1.transforms()
     return preprocess(x)
 
 class ImagenetDataset(dataset.Dataset):
-    """Omniglot dataset for meta-learning.
+    """imagenet dataset for meta-learning.
 
     Each element of the dataset is a task. A task is specified with a key,
     which is a tuple of class indices (no particular order). The corresponding
