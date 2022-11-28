@@ -63,6 +63,7 @@ class ImagenetDataset(dataset.Dataset):
                 for i in range(5):
                     with zipfile.ZipFile(os.path.join(self._IMAGENET_ZIP_PATH, 
                                                     "train_images_{}.tar.gz".format(i)), "r") as zip_ref:
+                        print("Extracting Zip File {}".format(i))
                         zip_ref.extractall(self._BASE_PATH)
             sys.exit()
 
