@@ -12,6 +12,7 @@ from torch.utils import tensorboard
 from torchvision.models import squeezenet1_1, SqueezeNet1_1_Weights
 
 import omniglot
+import imagenet_tiny
 import util
 import sys
 import random
@@ -593,22 +594,40 @@ def main(args):
             f'num_support={args.num_support}, '
             f'num_query={args.num_query}'
         )
-        dataloader_train = omniglot.get_omniglot_dataloader(
-            'train',
-            args.batch_size,
-            args.num_way,
-            args.num_support,
-            args.num_query,
-            num_training_tasks
-        )
-        dataloader_val = omniglot.get_omniglot_dataloader(
-            'val',
-            args.batch_size,
-            args.num_way,
-            args.num_support,
-            args.num_query,
-            args.batch_size * 4
-        )
+        if args.dataset == "omniglot":
+            dataloader_train = omniglot.get_omniglot_dataloader(
+                'train',
+                args.batch_size,
+                args.num_way,
+                args.num_support,
+                args.num_query,
+                num_training_tasks
+            )
+            dataloader_val = omniglot.get_omniglot_dataloader(
+                'val',
+                args.batch_size,
+                args.num_way,
+                args.num_support,
+                args.num_query,
+                args.batch_size * 4
+            )
+        elif args.dataset == "imagenet":
+            dataloader_train = imagenet.get_imagenet_dataloader(
+                'train',
+                args.batch_size,
+                args.num_way,
+                args.num_support,
+                args.num_query,
+                num_training_tasks
+            )
+            dataloader_val = imagenet.get_imagenet_dataloader(
+                'val',
+                args.batch_size,
+                args.num_way,
+                args.num_support,
+                args.num_query,
+                args.batch_size * 4
+            )
         maml.train(
             dataloader_train,
             dataloader_val,
@@ -644,6 +663,8 @@ if __name__ == '__main__':
                         help='number of query examples per class in a task')
     parser.add_argument('--num_inner_steps', type=int, default=1,
                         help='number of inner-loop updates')
+    parser.add_argument("--dataset", type = str, default="omniglot",
+                        choices = ['omniglot', 'imagenet'])
     parser.add_argument('--pretrain', type=bool, default=False,
                         help='whether to use pretrain model as inner loop')  
     parser.add_argument('--aug_net_size', type=int, default=1,
