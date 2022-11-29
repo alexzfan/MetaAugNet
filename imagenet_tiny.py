@@ -39,15 +39,8 @@ def load_image(file_path):
     x = Image.open(file_path).convert("RGB")
 
     std_image = Compose(
-            [
-                Resize(
-                    size=(48, 48)
-                ),        
-                ToTensor(),
-                Normalize(
-                    mean=(0.485, 0.456, 0.406), 
-                    std=(0.229, 0.224, 0.225)
-                )
+            [   
+                ToTensor()
             ]
         )
     x = std_image(x)
