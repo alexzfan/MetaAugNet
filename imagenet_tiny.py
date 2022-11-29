@@ -13,10 +13,10 @@ from torchvision.models import squeezenet1_1, SqueezeNet1_1_Weights
 import sys
 from PIL import Image
 
-NUM_TRAIN_CLASSES = 600
-NUM_VAL_CLASSES = 200
-NUM_TEST_CLASSES = 200
-NUM_SAMPLES_PER_CLASS = 20
+NUM_TRAIN_CLASSES = 64
+NUM_VAL_CLASSES = 16
+NUM_TEST_CLASSES = 20
+NUM_SAMPLES_PER_CLASS = 600
 
 
 def load_image(file_path):
@@ -62,8 +62,8 @@ class ImagenetDataset(dataset.Dataset):
     pairs.
     """
 
-    _BASE_PATH = './ILSVRC/Data/CLS-LOC/train'
-
+    _MAIN_IMAGENET_PATH = './ILSVRC/Data/CLS-LOC/train'
+    _MINY_IMAGENET_PATH = './mini-imagenet-tools/processed_images'
     def __init__(self, num_support, num_query):
         """Inits ImagenetDataset.
 
@@ -74,23 +74,25 @@ class ImagenetDataset(dataset.Dataset):
         super().__init__()
 
 
-        # if necessary, download the Omniglot dataset
-        if not os.path.isdir(self._BASE_PATH):
+        # if necessary, download the main imagenet dataset
+        if not os.path.isdir(self._MAIN_IMAGENET_PATH) and not os.path.isdir(self._MINY_IMAGENET_PATH):
             api = KaggleApi()
             api.authenticate()
             api.competition_download_files('imagenet-object-localization-challenge', path='./')
-            sys.exit()
+            
+        if not os.path.isdir(self._MINY_IMAGENET_PATH)
+            raise Exception("Download and process MINY via mini-imagenet-toolkit")
 
 
         # get all image folders
         self._image_folders = glob.glob(
-            os.path.join(self._BASE_PATH, '*/'))
+            os.path.join(self._MINY_IMAGENET_PATH, '*/'))
         assert len(self._image_folders) == (
             NUM_TRAIN_CLASSES + NUM_VAL_CLASSES + NUM_TEST_CLASSES
         )
 
         # shuffle images
-        np.random.default_rng(0).shuffle(self._image_folders)
+        # np.random.default_rng(0).shuffle(self._image_folders)
 
         # check problem arguments
         assert num_support + num_query <= NUM_SAMPLES_PER_CLASS
