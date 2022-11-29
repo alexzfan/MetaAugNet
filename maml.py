@@ -9,17 +9,17 @@ from torch import nn
 import torch.nn.functional as F
 from torch import autograd
 from torch.utils import tensorboard
-#from torchvision.models import squeezenet1_1, SqueezeNet1_1_Weights
+from torchvision.models import squeezenet1_1, SqueezeNet1_1_Weights
 
 import omniglot
+import imagenet_tiny as imagenet
+import cifar_fs as cifar
+
+import pdb
 import util
 import sys
 import random
 
-import matplotlib.pyplot as plt
-import pdb
-
-NUM_INPUT_CHANNELS = 1
 NUM_HIDDEN_CHANNELS = 64
 KERNEL_SIZE = 3
 DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -30,11 +30,13 @@ VAL_INTERVAL = LOG_INTERVAL * 5
 NUM_TEST_TASKS = 600
 RESNET_CHANNEL = 3
 INNER_MODEL_SIZE = 4
+
 class MAML:
     """Trains and assesses a MAML."""
 
     def __init__(
             self,
+            num_input_channels,
             num_outputs,
             num_inner_steps,
             pretrain,
@@ -67,16 +69,17 @@ class MAML:
             log_dir (str): path to logging directory
         """
         self.debug = debug
+        self.num_input_channels = num_input_channels
         meta_parameters = {}
 
         # construct feature extractor
-        in_channels = NUM_INPUT_CHANNELS
+        in_channels = self.num_input_channels
         self.aug_net_size = aug_net_size
         for i in range(self.aug_net_size):
             if i == aug_net_size - 1:
                 meta_parameters[f'conv{i}'] = nn.init.constant_(
                     torch.empty(
-                        NUM_INPUT_CHANNELS,
+                        self.num_input_channels,
                         in_channels,
                         KERNEL_SIZE,
                         KERNEL_SIZE,
@@ -88,7 +91,7 @@ class MAML:
 
                 meta_parameters[f'b{i}'] = nn.init.zeros_(
                     torch.empty(
-                        NUM_INPUT_CHANNELS,
+                        self.num_input_channels,
                         requires_grad=True,
                         device=DEVICE
                     )
@@ -140,7 +143,7 @@ class MAML:
         else:
             # construct linear head layer
             inner_params = {}
-            in_channels = NUM_INPUT_CHANNELS
+            in_channels = self.num_input_channels
             for i in range(INNER_MODEL_SIZE):
                 inner_params[f'conv{i}']= nn.init.xavier_uniform_(
                     torch.empty(
@@ -212,7 +215,7 @@ class MAML:
                 shape (num_images, classes)
         """
         x = images
-        res = x # original images - add to augmented imgs
+        res = x
         for i in range(self.aug_net_size):
             x = F.conv2d(
                 input=x,
@@ -223,7 +226,8 @@ class MAML:
             ) 
 
             # applies noise on x
-            if random.uniform(0,1) < 0.2:
+            if random.uniform(0,1) < 0.7:
+                
                 x = x + nn.init.normal_(
                     torch.empty(
                         images.size(0),
@@ -234,7 +238,7 @@ class MAML:
                         device=DEVICE
                     ),
                     mean = 0,
-                    std = 1 # experiment with 0.25, 0.5, 1.5, 2
+                    std = 1
                 )
             x = F.layer_norm(x, x.shape[1:])
             x = F.relu(x)
@@ -256,8 +260,10 @@ class MAML:
                 shape (num_images, classes)
         """
         x = images
+        #print(images.shape) # torch.Size([5, 3, 32, 32])
+        #pdb.set_trace()
         if self.pretrain:
-            x = self.pretrain_model.eval(x).squeeze() # turn off batchnorm with .eval()
+            x = self.pretrain_model.eval(x).squeeze()
             x = F.linear(
                 input = x,
                 weight = parameters[f'w{INNER_MODEL_SIZE}'],
@@ -265,6 +271,7 @@ class MAML:
             )
         else:
             for i in range(INNER_MODEL_SIZE):
+
                 x = F.conv2d(
                     input=x,
                     weight=parameters[f'conv{i}'],
@@ -274,6 +281,8 @@ class MAML:
                 ) 
                 x = F.batch_norm(x, None, None, training = True)
                 x = F.relu(x)
+                if self.num_input_channels > 1:
+                    x = F.max_pool2d(x, (2,2))
             x = torch.mean(x, dim = [2,3])
             x = F.linear(
                 input = x,
@@ -322,7 +331,7 @@ class MAML:
 
         return inner_parameters, accuracies
 
-    def _outer_step(self, task_batch, train, step=None):
+    def _outer_step(self, task_batch, train):
         """Computes the MAML loss and metrics on a batch of tasks.
         Args:
             task_batch (tuple): batch of tasks from an Omniglot DataLoader
@@ -339,14 +348,6 @@ class MAML:
         accuracies_support_batch = []
         accuracy_query_batch = []
 
-        if step is not None: #visualize support imgs
-            plt.figure()
-            fig, ax = plt.subplots(2,3) 
-            for j in range(len(support_aug)):
-                ax[0+(j//3), j%3].imshow(support_aug[j,:,:,:].permute(1,2,0).detach().numpy())
-            plt.savefig("aug_imgs/{}-{}-{}.png".format(step,i,j))
-            plt.close()
-
         for task in task_batch:
             images_support, labels_support, images_query, labels_query = task
             images_support = images_support.to(DEVICE)
@@ -355,29 +356,17 @@ class MAML:
             labels_query = labels_query.to(DEVICE)
 
             # does the "augmentation"
-
             support_augs = []
             labels_temp = []
             for i in range(self.num_augs):
-                support_aug = self._augmentation_forward(images_support, self._meta_parameters, train)
-                if self.pretrain and NUM_INPUT_CHANNELS != RESNET_CHANNEL:
-                    support_aug = util.increase_image_channels(support_aug, RESNET_CHANNEL, DEVICE)
-                support_augs.append(support_aug)
+                support_augs.append(self._augmentation_forward(images_support, self._meta_parameters, train))
                 labels_temp.append(labels_support)
             
-            if step is not None:
-                plt.figure()
-                fig, ax = plt.subplots(2,3) 
-                for j in range(len(support_aug)):
-                    ax[0+(j//3), j%3].imshow(support_aug[j,:,:,:].permute(1,2,0).detach().numpy())
-                plt.savefig("aug_imgs/{}-{}-{}.png".format(step,i,j))
-                plt.close()
-
-            support_out = torch.cat(support_augs, dim = 0)
-            labels_support = torch.cat(labels_temp, dim = 0)
+            support_augs = torch.cat(support_augs, dim = 0)
+            labels_temp = torch.cat(labels_temp, dim = 0)
 
             # run in inner loop for resnet feature extraction and meta training
-            param, acc = self._inner_loop(support_out, labels_support, train)
+            param, acc = self._inner_loop(support_augs, labels_temp, train)
             accuracies_support_batch.append(acc)
 
             # run adapted linear on the query
@@ -414,9 +403,8 @@ class MAML:
                 start=self._start_train_step
         ):
             self._optimizer.zero_grad()
-            print(i_step)
             outer_loss, accuracies_support, accuracy_query = (
-                self._outer_step(task_batch, train=True, step=i_step)
+                self._outer_step(task_batch, train=True)
             )
             outer_loss.backward()
             self._optimizer.step()
@@ -565,7 +553,12 @@ def main(args):
     print(f'log_dir: {log_dir}')
     writer = tensorboard.SummaryWriter(log_dir=log_dir)
 
+    if args.dataset == 'omniglot':
+        num_input_channels = 1
+    else:
+        num_input_channels = 3
     maml = MAML(
+        num_input_channels,
         args.num_way,
         args.num_inner_steps,
         args.pretrain,
@@ -591,24 +584,60 @@ def main(args):
             f'Training on {num_training_tasks} tasks with composition: '
             f'num_way={args.num_way}, '
             f'num_support={args.num_support}, '
-            f'num_query={args.num_query}'
+            f'num_query={args.num_query}, '
+            f'num_augs={args.num_augs}'
         )
-        dataloader_train = omniglot.get_omniglot_dataloader(
-            'train',
-            args.batch_size,
-            args.num_way,
-            args.num_support,
-            args.num_query,
-            num_training_tasks
-        )
-        dataloader_val = omniglot.get_omniglot_dataloader(
-            'val',
-            args.batch_size,
-            args.num_way,
-            args.num_support,
-            args.num_query,
-            args.batch_size * 4
-        )
+        if args.dataset == "omniglot":
+            dataloader_train = omniglot.get_omniglot_dataloader(
+                'train',
+                args.batch_size,
+                args.num_way,
+                args.num_support,
+                args.num_query,
+                num_training_tasks
+            )
+            dataloader_val = omniglot.get_omniglot_dataloader(
+                'val',
+                args.batch_size,
+                args.num_way,
+                args.num_support,
+                args.num_query,
+                args.batch_size * 4
+            )
+        elif args.dataset == "imagenet":
+            dataloader_train = imagenet.get_imagenet_dataloader(
+                'train',
+                args.batch_size,
+                args.num_way,
+                args.num_support,
+                args.num_query,
+                num_training_tasks
+            )
+            dataloader_val = imagenet.get_imagenet_dataloader(
+                'val',
+                args.batch_size,
+                args.num_way,
+                args.num_support,
+                args.num_query,
+                args.batch_size * 4
+            )
+        elif args.dataset == "cifar":
+            dataloader_train = cifar.get_cifar_dataloader(
+                'train',
+                args.batch_size,
+                args.num_way,
+                args.num_support,
+                args.num_query,
+                num_training_tasks
+            )
+            dataloader_val = cifar.get_cifar_dataloader(
+                'val',
+                args.batch_size,
+                args.num_way,
+                args.num_support,
+                args.num_query,
+                args.batch_size * 4
+            )
         maml.train(
             dataloader_train,
             dataloader_val,
@@ -644,6 +673,8 @@ if __name__ == '__main__':
                         help='number of query examples per class in a task')
     parser.add_argument('--num_inner_steps', type=int, default=1,
                         help='number of inner-loop updates')
+    parser.add_argument("--dataset", type = str, default="omniglot",
+                        choices = ['omniglot', 'imagenet', 'cifar'])
     parser.add_argument('--pretrain', type=bool, default=False,
                         help='whether to use pretrain model as inner loop')  
     parser.add_argument('--aug_net_size', type=int, default=1,
