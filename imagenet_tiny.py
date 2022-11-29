@@ -73,7 +73,7 @@ class ImagenetDataset(dataset.Dataset):
             api.authenticate()
             api.competition_download_files('imagenet-object-localization-challenge', path='./')
             
-        if not os.path.isdir(self._MINY_IMAGENET_PATH)
+        if not os.path.isdir(self._MINY_IMAGENET_PATH):
             raise Exception("Download and process MINY via mini-imagenet-toolkit")
 
 
