@@ -228,7 +228,7 @@ class MAML:
             ) 
 
             # applies noise on x
-            if random.uniform(0,1) < 0.4:
+            if random.uniform(0,1) < 0.7:
                 
                 x = x + nn.init.normal_(
                     torch.empty(
