@@ -116,7 +116,7 @@ class ImagenetDataset(dataset.Dataset):
         for label, class_idx in enumerate(class_idxs):
             # get a class's examples and sample from them
             all_file_paths = glob.glob(
-                os.path.join(self._image_folders[class_idx], '*.JPEG')
+                os.path.join(self._image_folders[class_idx], '*.jpg')
             )
             sampled_file_paths = np.random.default_rng().choice(
                 all_file_paths,
