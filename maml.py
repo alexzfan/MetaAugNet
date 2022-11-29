@@ -283,6 +283,8 @@ class MAML:
                 ) 
                 x = F.batch_norm(x, None, None, training = True)
                 x = F.relu(x)
+                if self.num_input_channels > 1:
+                    x = F.max_pool2d(x, (2,2))
             x = torch.mean(x, dim = [2,3])
             x = F.linear(
                 input = x,
