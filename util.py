@@ -64,11 +64,17 @@ class aug_net_block(nn.Module):
         self.conv_bias = nn.init.zeros_(
                     torch.empty(
                         out_channel,
-                        requires_grad=True,
-                        device=DEVICE
+                        requires_grad=True
                     )
                 )
-        self.conv_identity_weight = nn.init.dirac_(torch.empty(out_channel, in_channel, kernel_size, kernel_size, requires_grad = False))
+        self.conv_identity_weight = nn.init.dirac_(
+            torch.empty(
+                out_channel, 
+                in_channel, 
+                kernel_size, 
+                kernel_size, 
+                requires_grad = False)
+                )
 
     def forward(self, x):
         """x: input image (B, C, H, W)"""
