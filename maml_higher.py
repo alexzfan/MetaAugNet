@@ -218,7 +218,7 @@ class MAML:
             # does the "augmentation"
             support_augs = []
             labels_temp = []
-            for _ in range(self.num_augs):
+            for _ in range(self._num_augs):
                 support_augs.append(self._aug_net(images_support, train))
                 labels_temp.append(labels_support)
             support_augs = torch.cat(support_augs, dim = 0)
