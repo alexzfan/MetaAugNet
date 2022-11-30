@@ -1,7 +1,7 @@
 """Utilities for scoring the model."""
 import torch
-
-
+import torch.nn as nn
+import torch.nn.functional as F
 def score(logits, labels):
     """Returns the mean accuracy of a model's predictions on a set of examples.
 
@@ -37,5 +37,72 @@ def increase_image_channels(images, num_out_channels, device):
             temp[:, i, :, :] = image_mean
     
     return temp.to(device)
+
+
+
+class aug_net_block(nn.Module):
+
+    def __init__(
+        self,
+        in_channel,
+        out_channel,
+        kernel_size
+    ):
+        """Inits the augmentation network for MetaAugNet on MAML"""
+        super(aug_net_block, self).__init__()
+
+        self.conv_param = nn.init.constant_(
+                    torch.empty(
+                        out_channel,
+                        in_channel,
+                        kernel_size,
+                        kernel_size,
+                        requires_grad=True
+                    ),
+                    0
+                )
+        self.conv_bias = nn.init.zeros_(
+                    torch.empty(
+                        out_channel,
+                        requires_grad=True,
+                        device=DEVICE
+                    )
+                )
+        self.conv_identity_weight = nn.init.dirac_(torch.empty(out_channel, in_channel, kernel_size, kernel_size, requires_grad = False))
+
+    def forward(self, x):
+        """x: input image (B, C, H, W)"""
+        res =  F.conv2d(input = x, weight = self.conv_identity_weight, bias = None, padding = 'same', stride = 1)
+        x = F.conv2d(
+            input = x,
+            weight = self.conv_param,
+            bias = self.conv_bias,
+            stride = 1,
+            padding = 'same'
+        )
+        x = torch.max(x, 0)
+        return x + res
+
+class mean_pool_along_channel(nn.Module):
+    def __init__(self):
+        super(mean_pool_along_channel, self).__init__()
+
+    def forward(self, x):
+        assert len(x.shape) == 4
+        return torch.mean(x, dim = [2,3])
+
+
+class manual_relu(nn.Module):
+
+    def __init__(
+        self
+    ):
+
+        super(manual_relu, self).__init__()
+
+    def forward(self, x):
+        return torch.max(x, 0)
+
+
 
     
