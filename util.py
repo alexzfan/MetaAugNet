@@ -2,6 +2,10 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+
+
+DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
+
 def score(logits, labels):
     """Returns the mean accuracy of a model's predictions on a set of examples.
 
@@ -57,14 +61,16 @@ class aug_net_block(nn.Module):
                         in_channel,
                         kernel_size,
                         kernel_size,
-                        requires_grad=True
+                        requires_grad=True,
+                        device = DEVICE
                     ),
                     0
                 )
         self.conv_bias = nn.init.zeros_(
                     torch.empty(
                         out_channel,
-                        requires_grad=True
+                        requires_grad=True,
+                        device = DEVICE
                     )
                 )
         self.conv_identity_weight = nn.init.dirac_(
@@ -73,8 +79,10 @@ class aug_net_block(nn.Module):
                 in_channel, 
                 kernel_size, 
                 kernel_size, 
-                requires_grad = False)
+                requires_grad = False,
+                device = DEVICE
                 )
+            )
 
     def forward(self, x):
         """x: input image (B, C, H, W)"""
