@@ -418,9 +418,7 @@ class MAML:
         """
         optimizer_state_dict = self._optimizer.state_dict()
         torch.save(
-            dict(meta_parameters=self._meta_parameters,
-                 inner_lrs=self._inner_lrs,
-                 optimizer_state_dict=optimizer_state_dict),
+            dict(optimizer_state_dict=optimizer_state_dict),
             f'{os.path.join(self._log_dir, "state")}{checkpoint_step}.pt'
         )
         print('Saved checkpoint.')
