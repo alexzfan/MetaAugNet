@@ -218,9 +218,14 @@ class MAML:
             # does the "augmentation"
             support_augs = []
             labels_temp = []
+            if torch.allclose(images_support, self._aug_net(images_support)):
+                print("good shit")
+                sys.exit()
             for _ in range(self._num_augs):
                 support_augs.append(self._aug_net(images_support))
                 labels_temp.append(labels_support)
+
+
             support_augs = torch.cat(support_augs, dim = 0)
             labels_temp = torch.cat(labels_temp, dim = 0)
 
