@@ -94,7 +94,7 @@ class aug_net_block(nn.Module):
             stride = 1,
             padding = 'same'
         )
-        x = torch.max(x, 0)
+        x, _ = torch.max(x, 0)
         return x + res
 
 class mean_pool_along_channel(nn.Module):
