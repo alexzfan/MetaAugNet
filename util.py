@@ -94,7 +94,7 @@ class aug_net_block(nn.Module):
             stride = 1,
             padding = 'same'
         )
-        if random.uniform(0,1) < 0.7:
+        if random.uniform(0,1) < 0.4:
                 
                 x = x + nn.init.normal_(
                     torch.empty(
