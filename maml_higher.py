@@ -81,9 +81,9 @@ class MAML:
         in_channel = self.num_input_channels
         for i in range(self._aug_net_size):
             if i == self._aug_net_size - 1:
-                self._aug_net.append(util.aug_net_block(self.num_input_channels, in_channel, KERNEL_SIZE))
+                self._aug_net.append(util.aug_net_block(in_channel, self.num_input_channels, KERNEL_SIZE))
             else:
-                self._aug_net.append(util.aug_net_block(NUM_HIDDEN_CHANNELS, in_channel, KERNEL_SIZE))
+                self._aug_net.append(util.aug_net_block(in_channel, NUM_HIDDEN_CHANNELS, KERNEL_SIZE))
                 in_channel = NUM_HIDDEN_CHANNELS
         self._aug_net = self._aug_net.to(DEVICE)
 
