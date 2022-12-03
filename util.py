@@ -85,7 +85,7 @@ class aug_net_block(nn.Module):
             )
 
     def forward(self, x):
-        """x: input image (B, C, H, W)"""
+        """x: input image (N*S, C, H, W)"""
         res =  F.conv2d(input = x, weight = self.conv_identity_weight, bias = None, padding = 'same', stride = 1)
         x = F.conv2d(
             input = x,
