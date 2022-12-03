@@ -216,15 +216,10 @@ class MAML:
             labels_query = labels_query.to(DEVICE)
 
             # does the "augmentation"
-            support_augs = []
-            labels_temp = []
-            for _ in range(self._num_augs):
-                support_augs.append(self._aug_net(images_support))
-                labels_temp.append(labels_support)
+            support_augs = torch.cat([images_support for _ in range(self._num_augs)], dim = 0)
+            labels_augs = torch.cat([labels_support for _ in range(self._num_augs)], dim = 0)
 
-
-            support_augs = torch.cat(support_augs, dim = 0)
-            labels_temp = torch.cat(labels_temp, dim = 0)
+            support_augs = self._aug_net(support_augs)
 
             # use higher
             inner_opt = torch.optim.SGD(self._inner_net.parameters(), lr=1e-1)
@@ -237,12 +232,12 @@ class MAML:
                 support_accs = []
                 for _ in range(self._num_inner_steps):
                         spt_logits = fnet(support_augs)
-                        spt_loss = F.cross_entropy(spt_logits, labels_temp)
+                        spt_loss = F.cross_entropy(spt_logits, labels_augs)
 
-                        support_accs.append(util.score(spt_logits, labels_temp))
+                        support_accs.append(util.score(spt_logits, labels_augs))
                         diffopt.step(spt_loss)
                 spt_logits = fnet(support_augs)
-                support_accs.append(util.score(spt_logits, labels_temp))
+                support_accs.append(util.score(spt_logits, labels_augs))
                 accuracies_support_batch.append(support_accs)
 
                 # query time
