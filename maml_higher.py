@@ -451,7 +451,7 @@ def main(args):
     wandb_name = log_dir.split('/')[-1]
     if args.test : 
         wandb_name = "eval_" + wandb_name
-    wandb.init(project='meta_aug_net', entity='brianwhill', config=args, name=wandb_name, sync_tensorboard=True)
+    wandb.init(project='meta-aug-net', entity='alex-yoko-brian', config=args, name=wandb_name, sync_tensorboard=True)
     writer = tensorboard.SummaryWriter(log_dir=log_dir)
 
     if args.dataset == 'omniglot':
