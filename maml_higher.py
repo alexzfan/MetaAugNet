@@ -259,12 +259,21 @@ class MAML:
                 accuracies_support_batch.append(support_accs)
 
                 # query time
-                qry_logits = fnet(images_query)
-                qry_loss = F.cross_entropy(qry_logits, labels_query)
-                accuracy_query_batch.append(util.score(qry_logits, labels_query))
-                outer_loss_batch.append(qry_loss.detach())
+                if self.pretrain:
+                    images_query = self.pretrain_model(images_query)
+                    qry_logits = fnet(images_query)
+                    qry_loss = F.cross_entropy(qry_logits, labels_query)
+                    accuracy_query_batch.append(util.score(qry_logits, labels_query))
+                    outer_loss_batch.append(qry_loss.detach())
 
-                qry_loss.backward()
+                    qry_loss.backward()
+                else:
+                    qry_logits = fnet(images_query)
+                    qry_loss = F.cross_entropy(qry_logits, labels_query)
+                    accuracy_query_batch.append(util.score(qry_logits, labels_query))
+                    outer_loss_batch.append(qry_loss.detach())
+
+                    qry_loss.backward()
 
             # ********************************************************
             # ******************* YOUR CODE HERE *********************
