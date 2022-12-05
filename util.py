@@ -65,7 +65,7 @@ class aug_net_block(nn.Module):
                         requires_grad=True,
                         device = DEVICE
                     ),
-                    0
+                    0.000001
                 )
         self.conv_bias = nn.init.zeros_(
                     torch.empty(
