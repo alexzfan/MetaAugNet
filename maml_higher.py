@@ -15,7 +15,7 @@ import higher
 import wandb
 
 import omniglot
-# import imagenet_tiny as imagenet
+import imagenet_tiny as imagenet
 import util
 import sys
 import random
