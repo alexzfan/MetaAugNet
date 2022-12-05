@@ -50,7 +50,8 @@ class aug_net_block(nn.Module):
         self,
         in_channel,
         out_channel,
-        kernel_size
+        kernel_size,
+        aug_noise_prob
     ):
         """Inits the augmentation network for MetaAugNet on MAML"""
         super(aug_net_block, self).__init__()
@@ -84,6 +85,8 @@ class aug_net_block(nn.Module):
                 )
             )
 
+        self.aug_noise_prob = aug_noise_prob
+
     def forward(self, x):
         """x: input image (N*S, C, H, W)"""
         res =  F.conv2d(input = x, weight = self.conv_identity_weight, bias = None, padding = 'same', stride = 1)
@@ -94,7 +97,7 @@ class aug_net_block(nn.Module):
             stride = 1,
             padding = 'same'
         )
-        if random.uniform(0,1) < 0.4:
+        if random.uniform(0,1) < self.aug_noise_prob:
                 
                 x = x + nn.init.normal_(
                     torch.empty(

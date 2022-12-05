@@ -44,6 +44,7 @@ class MAML:
             pretrain,
             aug_net_size,
             num_augs,
+            aug_noise_prob,
             train_aug_type,
             inner_lr,
             learn_inner_lrs,
@@ -79,15 +80,16 @@ class MAML:
 
         # construct feature extractor
         self._aug_net_size = aug_net_size
+        self._aug_noise_prob = aug_noise_prob
         self.train_aug_type = train_aug_type
         
         self._aug_net = nn.Sequential()
         in_channel = self.num_input_channels
         for i in range(self._aug_net_size):
             if i == self._aug_net_size - 1:
-                self._aug_net.append(util.aug_net_block(in_channel, self.num_input_channels, KERNEL_SIZE))
+                self._aug_net.append(util.aug_net_block(in_channel, self.num_input_channels, KERNEL_SIZE, self._aug_noise_prob))
             else:
-                self._aug_net.append(util.aug_net_block(in_channel, NUM_HIDDEN_CHANNELS, KERNEL_SIZE))
+                self._aug_net.append(util.aug_net_block(in_channel, NUM_HIDDEN_CHANNELS, KERNEL_SIZE, self._aug_noise_prob))
                 in_channel = NUM_HIDDEN_CHANNELS
         self._aug_net = self._aug_net.to(DEVICE)
 
@@ -98,21 +100,12 @@ class MAML:
             self.pretrain_model =nn.Sequential(*list(squeezenet1_1(weights=SqueezeNet1_1_Weights.IMAGENET1K_V1).children())[:-1]).to(DEVICE)
             for param in self.pretrain_model.parameters():
                 param.requires_grad = False
-            inner_params = {}
-            inner_params[f'w{INNER_MODEL_SIZE}'] = nn.init.xavier_uniform_(
-                torch.empty(
-                    num_outputs,
-                    NUM_HIDDEN_CHANNELS, # figure out shape of this 
-                    requires_grad=True,
-                    device=DEVICE
-                )
-            )
-            inner_params[f'b{INNER_MODEL_SIZE}'] = nn.init.zeros_(
-                torch.empty(
-                    num_outputs,
-                    requires_grad=True,
-                    device=DEVICE
-                )
+
+            self.pretrain_model.eval()
+            
+            self._inner_net = nn.Sequential(
+                util.mean_pool_along_channel,
+                nn.Linear(256, num_outputs)
             )
         else:
             self._inner_net = nn.Sequential(
@@ -247,6 +240,14 @@ class MAML:
                 # adapt in inner loop
                 support_accs = []
                 for _ in range(self._num_inner_steps):
+                    if self.pretrain:
+                        support_augs = self.pretrain_model(support_augs)
+                        spt_logits = fnet(support_augs)
+                        spt_loss = F.cross_entropy(spt_logits, labels_augs)
+
+                        support_accs.append(util.score(spt_logits, labels_augs))
+                        diffopt.step(spt_loss)
+                    else:
                         spt_logits = fnet(support_augs)
                         spt_loss = F.cross_entropy(spt_logits, labels_augs)
 
@@ -446,7 +447,7 @@ def main(args):
     # Initialize logging (Tensorboard and Wandb)
     log_dir = args.log_dir
     if log_dir is None:
-        log_dir = f'./logs/maml/{args.dataset}.train_aug_type:{args.train_aug_type}.aut_net_size:{args.aug_net_size}.pretrain:{args.pretrain}.num_augs{args.num_augs}.l2_wd{args.l2_wd}.way:{args.num_way}.support:{args.num_support}.query:{args.num_query}.inner_steps:{args.num_inner_steps}.inner_lr:{args.inner_lr}.learn_inner_lrs:{args.learn_inner_lrs}.outer_lr:{args.outer_lr}.batch_size:{args.batch_size}'  # pylint: disable=line-too-long
+        log_dir = f'./logs/maml/{args.dataset}.train_aug_type:{args.train_aug_type}.aut_net_size:{args.aug_net_size}.pretrain:{args.pretrain}.num_augs{args.num_augs}.aug_noise_prob{args.aug_noise_prob}.l2_wd{args.l2_wd}.way:{args.num_way}.support:{args.num_support}.query:{args.num_query}.inner_steps:{args.num_inner_steps}.inner_lr:{args.inner_lr}.learn_inner_lrs:{args.learn_inner_lrs}.outer_lr:{args.outer_lr}.batch_size:{args.batch_size}'  # pylint: disable=line-too-long
     print(f'log_dir: {log_dir}')
     wandb_name = log_dir.split('/')[-1]
     if args.test : 
@@ -465,6 +466,7 @@ def main(args):
         args.pretrain,
         args.aug_net_size,
         args.num_augs,
+        args.aug_noise_prob,
         args.train_aug_type,
         args.inner_lr,
         args.learn_inner_lrs,
@@ -565,7 +567,9 @@ if __name__ == '__main__':
     parser.add_argument('--aug_net_size', type=int, default=1,
                         help='how many conv layers in augmentation network')       
     parser.add_argument('--num_augs', type=int, default=1,
-                        help='how many sets of augmentations')                       
+                        help='how many sets of augmentations')  
+    parser.add_argument('--aug_noise_prob', type=int, default=0.4,
+                        help='likelihood to inject noise in augmentation layer')                       
     parser.add_argument('--inner_lr', type=float, default=0.4,
                         help='inner-loop learning rate initialization')
     parser.add_argument('--learn_inner_lrs', default=False, action='store_true',
