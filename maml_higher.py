@@ -17,7 +17,7 @@ import wandb
 import matplotlib
 
 import omniglot
-#import imagenet_tiny as imagenet
+import imagenet_tiny as imagenet
 import cifar_fs as cifar
 
 import util
@@ -222,19 +222,19 @@ class MAML:
             support_augs = torch.cat([images_support for _ in range(self._num_augs)], dim = 0)
             labels_augs = torch.cat([labels_support for _ in range(self._num_augs)], dim = 0)
             
-            if step:
-                plt.figure()
-                fig, ax = plt.subplots(1,len(support_augs)) 
-                for j in range(len(support_augs)):
-                    #ax[0+(j//3), j%3]
-                    ax[j].imshow((support_augs[j].permute(1,2,0).cpu()\
-                                .detach().numpy() *255).astype(np.uint8))
-                    ax[j].tick_params(which = 'both', size = 0, labelsize = 0)
-                    plt.setp(ax[j].spines.values(), alpha = 0)
-                if not os.path.exists("aug-imgs/step{}/".format(step)):
-                    os.makedirs("aug-imgs/step{}/".format(step))
-                plt.savefig("aug-imgs/step{}/{}-{}-original.png".format(step,task_idx, j))
-                plt.close()
+            # if step:
+            #     plt.figure()
+            #     fig, ax = plt.subplots(1,len(support_augs)) 
+            #     for j in range(len(support_augs)):
+            #         #ax[0+(j//3), j%3]
+            #         ax[j].imshow((support_augs[j].permute(1,2,0).cpu()\
+            #                     .detach().numpy() *255).astype(np.uint8))
+            #         ax[j].tick_params(which = 'both', size = 0, labelsize = 0)
+            #         plt.setp(ax[j].spines.values(), alpha = 0)
+            #     if not os.path.exists("aug-imgs/step{}/".format(step)):
+            #         os.makedirs("aug-imgs/step{}/".format(step))
+            #     plt.savefig("aug-imgs/step{}/{}-{}-original.png".format(step,task_idx, j))
+            #     plt.close()
 
             if aug_type == 'learned':
                 support_augs = self._aug_net(support_augs)
@@ -250,18 +250,18 @@ class MAML:
             else:
                 raise ValueError ("Not a valid augmentation_type")
 
-            if step:
-                plt.figure()
-                fig, ax = plt.subplots(1,len(support_augs)) 
-                for j in range(len(support_augs)): 
-                    ax[j].imshow((support_augs[j].permute(1,2,0).cpu()\
-                                .detach().numpy() *255).astype(np.uint8)) #ax[0+(j//3), j%3]
-                    ax[j].tick_params(which = 'both', size = 0, labelsize = 0)
-                    plt.setp(ax[j].spines.values(), alpha = 0)
-                if not os.path.exists("aug-imgs/step{}/".format(step)):
-                    os.makedirs("aug-imgs/step{}/".format(step))
-                plt.savefig("aug-imgs/step{}/{}-{}-augmented.png".format(step,task_idx, j))
-                plt.close()
+            # if step:
+            #     plt.figure()
+            #     fig, ax = plt.subplots(1,len(support_augs)) 
+            #     for j in range(len(support_augs)): 
+            #         ax[j].imshow((support_augs[j].permute(1,2,0).cpu()\
+            #                     .detach().numpy() *255).astype(np.uint8)) #ax[0+(j//3), j%3]
+            #         ax[j].tick_params(which = 'both', size = 0, labelsize = 0)
+            #         plt.setp(ax[j].spines.values(), alpha = 0)
+            #     if not os.path.exists("aug-imgs/step{}/".format(step)):
+            #         os.makedirs("aug-imgs/step{}/".format(step))
+            #     plt.savefig("aug-imgs/step{}/{}-{}-augmented.png".format(step,task_idx, j))
+            #     plt.close()
 
             task_idx += 1
             # use higher
@@ -490,7 +490,7 @@ def main(args):
     # Initialize logging (Tensorboard and Wandb)
     log_dir = args.log_dir
     if log_dir is None:
-        log_dir = f'./logs/maml/{args.dataset}.train_aug_type:{args.train_aug_type}.aut_net_size:{args.aug_net_size}.pretrain:{args.pretrain}.num_augs{args.num_augs}.aug_noise_prob{args.aug_noise_prob}.l2_wd{args.l2_wd}.way:{args.num_way}.support:{args.num_support}.query:{args.num_query}.inner_steps:{args.num_inner_steps}.inner_lr:{args.inner_lr}.learn_inner_lrs:{args.learn_inner_lrs}.outer_lr:{args.outer_lr}.batch_size:{args.batch_size}'  # pylint: disable=line-too-long
+        log_dir = f'./logs/maml/{args.dataset}.train_aug_type:{args.train_aug_type}.aut_net_size:{args.aug_net_size}.pretrain:{args.pretrain}.num_augs{args.num_augs}.aug_noise_prob{args.aug_noise_prob}.l2_wd{args.l2_wd}.way:{args.num_way}.support:{args.num_support}.query:{args.num_query}.inner_steps:{args.num_inner_steps}.inner_lr:{args.inner_lr}.learn_inner_lrs:{args.learn_inner_lrs}.outer_lr:{args.outer_lr}.batch_size:{args.batch_size}' # pylint: disable=line-too-long
     print(f'log_dir: {log_dir}')
     wandb_name = log_dir.split('/')[-1]
     if args.test : 
@@ -627,9 +627,9 @@ if __name__ == '__main__':
     parser.add_argument('--aug_net_size', type=int, default=1,
                         help='how many conv layers in augmentation network')       
     parser.add_argument('--num_augs', type=int, default=1,
-                        help='how many sets of augmentations')  
+                        help='how many sets of augmentations')
     parser.add_argument('--aug_noise_prob', type=int, default=0.4,
-                        help='likelihood to inject noise in augmentation layer')                       
+                        help='likelihood to inject noise in augmentation layer')                          
     parser.add_argument('--inner_lr', type=float, default=0.4,
                         help='inner-loop learning rate initialization')
     parser.add_argument('--learn_inner_lrs', default=False, action='store_true',
