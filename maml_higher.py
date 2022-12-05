@@ -106,7 +106,7 @@ class MAML:
             self._inner_net = nn.Sequential(
                 util.mean_pool_along_channel(),
                 nn.Linear(256, num_outputs)
-            )
+            ).to(DEVICE)
         else:
             self._inner_net = nn.Sequential(
                 nn.Conv2d(self.num_input_channels, 64, 3),
