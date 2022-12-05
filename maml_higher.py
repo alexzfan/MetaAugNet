@@ -242,7 +242,6 @@ class MAML:
                 for _ in range(self._num_inner_steps):
                     if self.pretrain:
                         support_augs = self.pretrain_model(support_augs)
-                        print(support_augs.shape)
                         spt_logits = fnet(support_augs)
                         spt_loss = F.cross_entropy(spt_logits, labels_augs)
 
