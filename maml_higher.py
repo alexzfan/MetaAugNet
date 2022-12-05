@@ -104,7 +104,7 @@ class MAML:
             self.pretrain_model.eval()
             
             self._inner_net = nn.Sequential(
-                util.mean_pool_along_channel,
+                util.mean_pool_along_channel(),
                 nn.Linear(256, num_outputs)
             )
         else:
