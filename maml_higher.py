@@ -3,6 +3,7 @@
 import argparse
 import os
 
+import matplotlib.pyplot as plt
 import numpy as np
 import torch
 from torch import nn
@@ -13,12 +14,16 @@ from torchvision.models import squeezenet1_1, SqueezeNet1_1_Weights
 import torchvision.transforms as transforms
 import higher
 import wandb
+import matplotlib
 
 import omniglot
-import imagenet_tiny as imagenet
+#import imagenet_tiny as imagenet
+import cifar_fs as cifar
+
 import util
 import sys
 import random
+import pdb
 
 NUM_HIDDEN_CHANNELS = 64
 KERNEL_SIZE = 3
@@ -187,7 +192,7 @@ class MAML:
 
     #     return inner_parameters, accuracies
 
-    def _outer_step(self, task_batch, train, aug_type="learned"):
+    def _outer_step(self, task_batch, train, aug_type="learned", step=None):
         """Computes the MAML loss and metrics on a batch of tasks.
 
         Args:
@@ -205,6 +210,7 @@ class MAML:
         outer_loss_batch = []
         accuracies_support_batch = []
         accuracy_query_batch = []
+        task_idx = 0
         for task in task_batch:
             images_support, labels_support, images_query, labels_query = task
             images_support = images_support.to(DEVICE)
@@ -215,6 +221,20 @@ class MAML:
             # does the "augmentation"
             support_augs = torch.cat([images_support for _ in range(self._num_augs)], dim = 0)
             labels_augs = torch.cat([labels_support for _ in range(self._num_augs)], dim = 0)
+            
+            if step:
+                plt.figure()
+                fig, ax = plt.subplots(1,len(support_augs)) 
+                for j in range(len(support_augs)):
+                    #ax[0+(j//3), j%3]
+                    ax[j].imshow((support_augs[j].permute(1,2,0).cpu()\
+                                .detach().numpy() *255).astype(np.uint8))
+                    ax[j].tick_params(which = 'both', size = 0, labelsize = 0)
+                    plt.setp(ax[j].spines.values(), alpha = 0)
+                if not os.path.exists("aug-imgs/step{}/".format(step)):
+                    os.makedirs("aug-imgs/step{}/".format(step))
+                plt.savefig("aug-imgs/step{}/{}-{}-original.png".format(step,task_idx, j))
+                plt.close()
 
             if aug_type == 'learned':
                 support_augs = self._aug_net(support_augs)
@@ -230,6 +250,20 @@ class MAML:
             else:
                 raise ValueError ("Not a valid augmentation_type")
 
+            if step:
+                plt.figure()
+                fig, ax = plt.subplots(1,len(support_augs)) 
+                for j in range(len(support_augs)): 
+                    ax[j].imshow((support_augs[j].permute(1,2,0).cpu()\
+                                .detach().numpy() *255).astype(np.uint8)) #ax[0+(j//3), j%3]
+                    ax[j].tick_params(which = 'both', size = 0, labelsize = 0)
+                    plt.setp(ax[j].spines.values(), alpha = 0)
+                if not os.path.exists("aug-imgs/step{}/".format(step)):
+                    os.makedirs("aug-imgs/step{}/".format(step))
+                plt.savefig("aug-imgs/step{}/{}-{}-augmented.png".format(step,task_idx, j))
+                plt.close()
+
+            task_idx += 1
             # use higher
             inner_opt = torch.optim.SGD(self._inner_net.parameters(), lr=1e-1)
 
@@ -304,7 +338,7 @@ class MAML:
         ):
             self._optimizer.zero_grad()
             outer_loss, accuracies_support, accuracy_query = (
-                self._outer_step(task_batch, train=True)
+                self._outer_step(task_batch, train=True, step=i_step)
             )
             self._optimizer.step()
 
@@ -534,6 +568,23 @@ def main(args):
                 args.num_query,
                 args.batch_size * 4
             )
+        elif args.dataset == "cifar":
+            dataloader_train = cifar.get_cifar_dataloader(
+                'train',
+                args.batch_size,
+                args.num_way,
+                args.num_support,
+                args.num_query,
+                num_training_tasks
+            )
+            dataloader_val = cifar.get_cifar_dataloader(
+                'val',
+                args.batch_size,
+                args.num_way,
+                args.num_support,
+                args.num_query,
+                args.batch_size * 4
+            )
         maml.train(
             dataloader_train,
             dataloader_val,
@@ -570,7 +621,7 @@ if __name__ == '__main__':
     parser.add_argument('--num_inner_steps', type=int, default=1,
                         help='number of inner-loop updates')
     parser.add_argument("--dataset", type = str, default="omniglot",
-                        choices = ['omniglot', 'imagenet'])
+                        choices = ['omniglot', 'imagenet', 'cifar'])
     parser.add_argument('--pretrain', type=bool, default=False,
                         help='whether to use pretrain model as inner loop')  
     parser.add_argument('--aug_net_size', type=int, default=1,
