@@ -50,7 +50,8 @@ class MAML:
             outer_lr,
             l2_wd,
             log_dir,
-            debug
+            debug,
+            dataset
     ):
         """Inits MAML.
 
@@ -74,6 +75,7 @@ class MAML:
             outer_lr (float): learning rate for outer-loop optimization
             log_dir (str): path to logging directory
         """
+        self.dataset = dataset
         self.debug = debug
         self.num_input_channels = num_input_channels
 
@@ -232,8 +234,19 @@ class MAML:
                 random_crop_flip = transforms.Compose([transforms.RandomCrop((image_dim,image_dim), padding=8),transforms.RandomHorizontalFlip()])
                 support_augs = random_crop_flip(support_augs)
             elif aug_type == 'AutoAugment':
-                augmenter = transforms.AutoAugment(transforms.AutoAugmentPolicy.CIFAR10)
-                support_augs = augmenter(support_augs)
+                if self.dataset == 'cifar10':
+                    augmenter = transforms.AutoAugment(transforms.AutoAugmentPolicy.CIFAR10)
+                elif self.dataset == 'imagenet':
+                    augmenter = transforms.AutoAugment(transforms.AutoAugmentPolicy.IMAGENET)
+                elif self.dataset == 'omniglot':
+                    # No AutoAugment for omniglot, using SVHN (House Numbers) instead
+                    # There is a bug here, does not always work
+                    augmenter = transforms.AutoAugment(transforms.AutoAugmentPolicy.SVHN)
+                else: 
+                    print("AutoAugment not set up for this dataset, using imagenet")
+                    augmenter = transforms.AutoAugment(transforms.AutoAugmentPolicy.IMAGENET)
+                # Apply AutoAugment
+                # support_augs = augmenter(support_augs)
             else:
                 raise ValueError ("Not a valid augmentation_type")
 
@@ -243,7 +256,6 @@ class MAML:
             with higher.innerloop_ctx(
                 self._inner_net, inner_opt, copy_initial_weights=False
             ) as (fnet, diffopt):
-
                 # adapt in inner loop
                 support_accs = []
                 for _ in range(self._num_inner_steps):
@@ -471,7 +483,8 @@ def main(args):
         args.outer_lr,
         args.l2_wd,
         log_dir,
-        args.debug
+        args.debug,
+        args.dataset
     )
 
     if args.checkpoint_step > -1:
@@ -590,3 +603,7 @@ if __name__ == '__main__':
 
     main_args = parser.parse_args()
     main(main_args)
+
+
+## Example Run command 
+# python maml_higher.py --outer_lr 1e-3 --num_augs 1 --num_inner_steps 1 --aug_net_size 1 --l2_wd 1e-4 --dataset imagenet

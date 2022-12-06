@@ -3,7 +3,7 @@ import os
 import glob
 import gzip
 
-from kaggle.api.kaggle_api_extended import KaggleApi
+# from kaggle.api.kaggle_api_extended import KaggleApi
 import imageio
 import numpy as np
 import torch
