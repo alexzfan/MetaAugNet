@@ -308,6 +308,9 @@ class MAML:
 
                     qry_loss.backward()
 
+                    print(self._aug_net.features[0].weight)
+                    print(self._aug_net.features[0].weight.grad)
+
             # ********************************************************
             # ******************* YOUR CODE HERE *********************
             # ********************************************************
