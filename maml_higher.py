@@ -304,9 +304,9 @@ class MAML:
                     qry_logits = fnet(images_query)
                     qry_loss = F.cross_entropy(qry_logits, labels_query)
                     accuracy_query_batch.append(util.score(qry_logits, labels_query))
-                    outer_loss_batch.append(qry_loss.detach())
+                    outer_loss_batch.append(qry_loss)
 
-                    qry_loss.backward()
+                    
 
                     print(self._aug_net[0].conv_param.data)
                     print(self._aug_net[0].conv_param.grad)
@@ -343,6 +343,7 @@ class MAML:
             outer_loss, accuracies_support, accuracy_query = (
                 self._outer_step(task_batch, train=True, step=i_step)
             )
+            outer_loss.backward()
             self._optimizer.step()
 
             if i_step % LOG_INTERVAL == 0:
