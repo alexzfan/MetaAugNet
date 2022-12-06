@@ -56,7 +56,7 @@ class aug_net_block(nn.Module):
         """Inits the augmentation network for MetaAugNet on MAML"""
         super(aug_net_block, self).__init__()
 
-        self.conv_param = nn.init.constant_(
+        self.conv_param = nn.Parameter(nn.init.constant_(
                     torch.empty(
                         out_channel,
                         in_channel,
@@ -66,15 +66,15 @@ class aug_net_block(nn.Module):
                         device = DEVICE
                     ),
                     0.000001
-                )
-        self.conv_bias = nn.init.zeros_(
+                ))
+        self.conv_bias = nn.Parameter(nn.init.zeros_(
                     torch.empty(
                         out_channel,
                         requires_grad=True,
                         device = DEVICE
                     )
-                )
-        self.conv_identity_weight = nn.init.dirac_(
+                ))
+        self.conv_identity_weight = nn.Parameter(nn.init.dirac_(
             torch.empty(
                 out_channel, 
                 in_channel, 
@@ -83,7 +83,7 @@ class aug_net_block(nn.Module):
                 requires_grad = False,
                 device = DEVICE
                 )
-            )
+            ))
 
         self.aug_noise_prob = aug_noise_prob
 
