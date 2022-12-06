@@ -310,6 +310,7 @@ class MAML:
 
                     print(self._aug_net.features[0].weight)
                     print(self._aug_net.features[0].weight.grad)
+                    sys.exit()
 
             # ********************************************************
             # ******************* YOUR CODE HERE *********************
