@@ -56,7 +56,7 @@ class aug_net_block(nn.Module):
         """Inits the augmentation network for MetaAugNet on MAML"""
         super(aug_net_block, self).__init__()
 
-        self.conv_param = nn.Parameter(nn.init.constant_(
+        self.conv_param = nn.Parameter(nn.init.normal_(
                     torch.empty(
                         out_channel,
                         in_channel,
@@ -65,7 +65,8 @@ class aug_net_block(nn.Module):
                         requires_grad=True,
                         device = DEVICE
                     ),
-                    0.000001
+                    mean =0,# 0.000001
+                    std = 1e-8
                 ))
         self.conv_bias = nn.Parameter(nn.init.zeros_(
                     torch.empty(
@@ -109,7 +110,7 @@ class aug_net_block(nn.Module):
                     std = torch.std(x.detach()).item()
         )
         x = F.layer_norm(x, x.shape[1:])
-        x, _ = torch.max(x, 0)
+        x = torch.clamp(x, min=0)
         return x + res
 
 class mean_pool_along_channel(nn.Module):
