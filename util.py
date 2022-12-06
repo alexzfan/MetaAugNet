@@ -74,7 +74,7 @@ class aug_net_block(nn.Module):
                         device = DEVICE
                     )
                 ))
-        self.conv_identity_weight = nn.Parameter(nn.init.dirac_(
+        self.conv_identity_weight = nn.init.dirac_(
             torch.empty(
                 out_channel, 
                 in_channel, 
@@ -83,7 +83,7 @@ class aug_net_block(nn.Module):
                 requires_grad = False,
                 device = DEVICE
                 )
-            ))
+            )
 
         self.aug_noise_prob = aug_noise_prob
 
