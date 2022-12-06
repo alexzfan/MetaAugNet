@@ -3,6 +3,7 @@
 import argparse
 import os
 
+import matplotlib.pyplot as plt
 import numpy as np
 import torch
 from torch import nn
@@ -13,12 +14,16 @@ from torchvision.models import squeezenet1_1, SqueezeNet1_1_Weights
 import torchvision.transforms as transforms
 import higher
 import wandb
+import matplotlib
 
 import omniglot
 import imagenet_tiny as imagenet
+import cifar_fs as cifar
+
 import util
 import sys
 import random
+import pdb
 
 NUM_HIDDEN_CHANNELS = 64
 KERNEL_SIZE = 3
@@ -44,6 +49,7 @@ class MAML:
             pretrain,
             aug_net_size,
             num_augs,
+            aug_noise_prob,
             train_aug_type,
             inner_lr,
             learn_inner_lrs,
@@ -81,15 +87,16 @@ class MAML:
 
         # construct feature extractor
         self._aug_net_size = aug_net_size
+        self._aug_noise_prob = aug_noise_prob
         self.train_aug_type = train_aug_type
         
         self._aug_net = nn.Sequential()
         in_channel = self.num_input_channels
         for i in range(self._aug_net_size):
             if i == self._aug_net_size - 1:
-                self._aug_net.append(util.aug_net_block(in_channel, self.num_input_channels, KERNEL_SIZE))
+                self._aug_net.append(util.aug_net_block(in_channel, self.num_input_channels, KERNEL_SIZE, self._aug_noise_prob))
             else:
-                self._aug_net.append(util.aug_net_block(in_channel, NUM_HIDDEN_CHANNELS, KERNEL_SIZE))
+                self._aug_net.append(util.aug_net_block(in_channel, NUM_HIDDEN_CHANNELS, KERNEL_SIZE, self._aug_noise_prob))
                 in_channel = NUM_HIDDEN_CHANNELS
         self._aug_net = self._aug_net.to(DEVICE)
 
@@ -100,22 +107,13 @@ class MAML:
             self.pretrain_model =nn.Sequential(*list(squeezenet1_1(weights=SqueezeNet1_1_Weights.IMAGENET1K_V1).children())[:-1]).to(DEVICE)
             for param in self.pretrain_model.parameters():
                 param.requires_grad = False
-            inner_params = {}
-            inner_params[f'w{INNER_MODEL_SIZE}'] = nn.init.xavier_uniform_(
-                torch.empty(
-                    num_outputs,
-                    NUM_HIDDEN_CHANNELS, # figure out shape of this 
-                    requires_grad=True,
-                    device=DEVICE
-                )
-            )
-            inner_params[f'b{INNER_MODEL_SIZE}'] = nn.init.zeros_(
-                torch.empty(
-                    num_outputs,
-                    requires_grad=True,
-                    device=DEVICE
-                )
-            )
+
+            self.pretrain_model.eval()
+            
+            self._inner_net = nn.Sequential(
+                util.mean_pool_along_channel(),
+                nn.Linear(512, num_outputs)
+            ).to(DEVICE)
         else:
             self._inner_net = nn.Sequential(
                 nn.Conv2d(self.num_input_channels, 64, 3),
@@ -142,8 +140,8 @@ class MAML:
         
         self._outer_lr = outer_lr
         self._optimizer = torch.optim.Adam(
-            list(self._aug_net.parameters())+
-            list(self._inner_net.parameters()) ,
+            list(self._aug_net.parameters()) + 
+            list(self._inner_net.parameters()),
             lr=self._outer_lr,
             weight_decay = l2_wd
         )
@@ -196,7 +194,7 @@ class MAML:
 
     #     return inner_parameters, accuracies
 
-    def _outer_step(self, task_batch, train, aug_type="learned"):
+    def _outer_step(self, task_batch, train, aug_type="learned", step=None):
         """Computes the MAML loss and metrics on a batch of tasks.
 
         Args:
@@ -214,6 +212,7 @@ class MAML:
         outer_loss_batch = []
         accuracies_support_batch = []
         accuracy_query_batch = []
+        task_idx = 0
         for task in task_batch:
             images_support, labels_support, images_query, labels_query = task
             images_support = images_support.to(DEVICE)
@@ -224,6 +223,20 @@ class MAML:
             # does the "augmentation"
             support_augs = torch.cat([images_support for _ in range(self._num_augs)], dim = 0)
             labels_augs = torch.cat([labels_support for _ in range(self._num_augs)], dim = 0)
+            
+            # if step:
+            #     plt.figure()
+            #     fig, ax = plt.subplots(1,len(support_augs)) 
+            #     for j in range(len(support_augs)):
+            #         #ax[0+(j//3), j%3]
+            #         ax[j].imshow((support_augs[j].permute(1,2,0).cpu()\
+            #                     .detach().numpy() *255).astype(np.uint8))
+            #         ax[j].tick_params(which = 'both', size = 0, labelsize = 0)
+            #         plt.setp(ax[j].spines.values(), alpha = 0)
+            #     if not os.path.exists("aug-imgs/step{}/".format(step)):
+            #         os.makedirs("aug-imgs/step{}/".format(step))
+            #     plt.savefig("aug-imgs/step{}/{}-{}-original.png".format(step,task_idx, j))
+            #     plt.close()
 
             if aug_type == 'learned':
                 support_augs = self._aug_net(support_augs)
@@ -249,7 +262,21 @@ class MAML:
                 # support_augs = augmenter(support_augs)
             else:
                 raise ValueError ("Not a valid augmentation_type")
+            
+            # if step:
+            #     plt.figure()
+            #     fig, ax = plt.subplots(1,len(support_augs)) 
+            #     for j in range(len(support_augs)): 
+            #         ax[j].imshow((support_augs[j].permute(1,2,0).cpu()\
+            #                     .detach().numpy() *255).astype(np.uint8)) #ax[0+(j//3), j%3]
+            #         ax[j].tick_params(which = 'both', size = 0, labelsize = 0)
+            #         plt.setp(ax[j].spines.values(), alpha = 0)
+            #     if not os.path.exists("aug-imgs/step{}/".format(step)):
+            #         os.makedirs("aug-imgs/step{}/".format(step))
+            #     plt.savefig("aug-imgs/step{}/{}-{}-augmented.png".format(step,task_idx, j))
+            #     plt.close()
 
+            task_idx += 1
             # use higher
             inner_opt = torch.optim.SGD(self._inner_net.parameters(), lr=1e-1)
 
@@ -259,6 +286,14 @@ class MAML:
                 # adapt in inner loop
                 support_accs = []
                 for _ in range(self._num_inner_steps):
+                    if self.pretrain:
+                        support_augs = self.pretrain_model(support_augs)
+                        spt_logits = fnet(support_augs)
+                        spt_loss = F.cross_entropy(spt_logits, labels_augs)
+
+                        support_accs.append(util.score(spt_logits, labels_augs))
+                        diffopt.step(spt_loss)
+                    else:
                         spt_logits = fnet(support_augs)
                         spt_loss = F.cross_entropy(spt_logits, labels_augs)
 
@@ -269,12 +304,23 @@ class MAML:
                 accuracies_support_batch.append(support_accs)
 
                 # query time
-                qry_logits = fnet(images_query)
-                qry_loss = F.cross_entropy(qry_logits, labels_query)
-                accuracy_query_batch.append(util.score(qry_logits, labels_query))
-                outer_loss_batch.append(qry_loss.detach())
+                if self.pretrain:
+                    images_query = self.pretrain_model(images_query)
+                    qry_logits = fnet(images_query)
+                    qry_loss = F.cross_entropy(qry_logits, labels_query)
+                    accuracy_query_batch.append(util.score(qry_logits, labels_query))
+                    outer_loss_batch.append(qry_loss.detach())
 
-                qry_loss.backward()
+                    qry_loss.backward()
+                else:
+                    qry_logits = fnet(images_query)
+                    qry_loss = F.cross_entropy(qry_logits, labels_query)
+                    accuracy_query_batch.append(util.score(qry_logits, labels_query))
+
+                    qry_loss.backward()
+                    outer_loss_batch.append(qry_loss.detach())              
+
+
 
             # ********************************************************
             # ******************* YOUR CODE HERE *********************
@@ -306,8 +352,9 @@ class MAML:
         ):
             self._optimizer.zero_grad()
             outer_loss, accuracies_support, accuracy_query = (
-                self._outer_step(task_batch, train=True)
+                self._outer_step(task_batch, train=True, step=i_step)
             )
+
             self._optimizer.step()
 
             if i_step % LOG_INTERVAL == 0:
@@ -458,7 +505,7 @@ def main(args):
     # Initialize logging (Tensorboard and Wandb)
     log_dir = args.log_dir
     if log_dir is None:
-        log_dir = f'./logs/maml/{args.dataset}.train_aug_type:{args.train_aug_type}.aut_net_size:{args.aug_net_size}.pretrain:{args.pretrain}.num_augs{args.num_augs}.l2_wd{args.l2_wd}.way:{args.num_way}.support:{args.num_support}.query:{args.num_query}.inner_steps:{args.num_inner_steps}.inner_lr:{args.inner_lr}.learn_inner_lrs:{args.learn_inner_lrs}.outer_lr:{args.outer_lr}.batch_size:{args.batch_size}'  # pylint: disable=line-too-long
+        log_dir = f'./logs/maml/{args.dataset}.train_aug_type:{args.train_aug_type}.aut_net_size:{args.aug_net_size}.pretrain:{args.pretrain}.num_augs{args.num_augs}.aug_noise_prob{args.aug_noise_prob}.l2_wd{args.l2_wd}.way:{args.num_way}.support:{args.num_support}.query:{args.num_query}.inner_steps:{args.num_inner_steps}.inner_lr:{args.inner_lr}.learn_inner_lrs:{args.learn_inner_lrs}.outer_lr:{args.outer_lr}.batch_size:{args.batch_size}' # pylint: disable=line-too-long
     print(f'log_dir: {log_dir}')
     wandb_name = log_dir.split('/')[-1]
     if args.test : 
@@ -477,6 +524,7 @@ def main(args):
         args.pretrain,
         args.aug_net_size,
         args.num_augs,
+        args.aug_noise_prob,
         args.train_aug_type,
         args.inner_lr,
         args.learn_inner_lrs,
@@ -536,6 +584,23 @@ def main(args):
                 args.num_query,
                 args.batch_size * 4
             )
+        elif args.dataset == "cifar":
+            dataloader_train = cifar.get_cifar_dataloader(
+                'train',
+                args.batch_size,
+                args.num_way,
+                args.num_support,
+                args.num_query,
+                num_training_tasks
+            )
+            dataloader_val = cifar.get_cifar_dataloader(
+                'val',
+                args.batch_size,
+                args.num_way,
+                args.num_support,
+                args.num_query,
+                args.batch_size * 4
+            )
         maml.train(
             dataloader_train,
             dataloader_val,
@@ -572,13 +637,15 @@ if __name__ == '__main__':
     parser.add_argument('--num_inner_steps', type=int, default=1,
                         help='number of inner-loop updates')
     parser.add_argument("--dataset", type = str, default="omniglot",
-                        choices = ['omniglot', 'imagenet'])
+                        choices = ['omniglot', 'imagenet', 'cifar'])
     parser.add_argument('--pretrain', type=bool, default=False,
                         help='whether to use pretrain model as inner loop')  
     parser.add_argument('--aug_net_size', type=int, default=1,
                         help='how many conv layers in augmentation network')       
     parser.add_argument('--num_augs', type=int, default=1,
-                        help='how many sets of augmentations')                       
+                        help='how many sets of augmentations')
+    parser.add_argument('--aug_noise_prob', type=int, default=0.4,
+                        help='likelihood to inject noise in augmentation layer')                          
     parser.add_argument('--inner_lr', type=float, default=0.4,
                         help='inner-loop learning rate initialization')
     parser.add_argument('--learn_inner_lrs', default=False, action='store_true',

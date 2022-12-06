@@ -50,12 +50,13 @@ class aug_net_block(nn.Module):
         self,
         in_channel,
         out_channel,
-        kernel_size
+        kernel_size,
+        aug_noise_prob
     ):
         """Inits the augmentation network for MetaAugNet on MAML"""
         super(aug_net_block, self).__init__()
 
-        self.conv_param = nn.init.constant_(
+        self.conv_param = nn.Parameter(nn.init.constant_(
                     torch.empty(
                         out_channel,
                         in_channel,
@@ -64,15 +65,15 @@ class aug_net_block(nn.Module):
                         requires_grad=True,
                         device = DEVICE
                     ),
-                    0
-                )
-        self.conv_bias = nn.init.zeros_(
+                    0.000001
+                ))
+        self.conv_bias = nn.Parameter(nn.init.zeros_(
                     torch.empty(
                         out_channel,
                         requires_grad=True,
                         device = DEVICE
                     )
-                )
+                ))
         self.conv_identity_weight = nn.init.dirac_(
             torch.empty(
                 out_channel, 
@@ -84,6 +85,8 @@ class aug_net_block(nn.Module):
                 )
             )
 
+        self.aug_noise_prob = aug_noise_prob
+
     def forward(self, x):
         """x: input image (N*S, C, H, W)"""
         res =  F.conv2d(input = x, weight = self.conv_identity_weight, bias = None, padding = 'same', stride = 1)
@@ -94,7 +97,7 @@ class aug_net_block(nn.Module):
             stride = 1,
             padding = 'same'
         )
-        if random.uniform(0,1) < 0.4:
+        if random.uniform(0,1) < self.aug_noise_prob:
                 
                 x = x + nn.init.normal_(
                     torch.empty(
@@ -103,7 +106,7 @@ class aug_net_block(nn.Module):
                         device=DEVICE
                     ),
                     mean = 0,
-                    std = 1
+                    std = torch.std(x.detach()).item()
         )
         x = F.layer_norm(x, x.shape[1:])
         x, _ = torch.max(x, 0)
