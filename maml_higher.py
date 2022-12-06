@@ -631,7 +631,7 @@ if __name__ == '__main__':
                         help='how many conv layers in augmentation network')       
     parser.add_argument('--num_augs', type=int, default=1,
                         help='how many sets of augmentations')
-    parser.add_argument('--aug_noise_prob', type=int, default=0.4,
+    parser.add_argument('--aug_noise_prob', type=float, default=0.4,
                         help='likelihood to inject noise in augmentation layer')                          
     parser.add_argument('--inner_lr', type=float, default=0.4,
                         help='inner-loop learning rate initialization')
