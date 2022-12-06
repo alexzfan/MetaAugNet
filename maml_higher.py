@@ -56,7 +56,8 @@ class MAML:
             outer_lr,
             l2_wd,
             log_dir,
-            debug
+            debug,
+            dataset
     ):
         """Inits MAML.
 
@@ -80,6 +81,7 @@ class MAML:
             outer_lr (float): learning rate for outer-loop optimization
             log_dir (str): path to logging directory
         """
+        self.dataset = dataset
         self.debug = debug
         self.num_input_channels = num_input_channels
 
@@ -218,6 +220,62 @@ class MAML:
             images_query = images_query.to(DEVICE)
             labels_query = labels_query.to(DEVICE)
 
+            # does the "augmentation"
+            support_augs = torch.cat([images_support for _ in range(self._num_augs)], dim = 0)
+            labels_augs = torch.cat([labels_support for _ in range(self._num_augs)], dim = 0)
+            
+            # if step:
+            #     plt.figure()
+            #     fig, ax = plt.subplots(1,len(support_augs)) 
+            #     for j in range(len(support_augs)):
+            #         #ax[0+(j//3), j%3]
+            #         ax[j].imshow((support_augs[j].permute(1,2,0).cpu()\
+            #                     .detach().numpy() *255).astype(np.uint8))
+            #         ax[j].tick_params(which = 'both', size = 0, labelsize = 0)
+            #         plt.setp(ax[j].spines.values(), alpha = 0)
+            #     if not os.path.exists("aug-imgs/step{}/".format(step)):
+            #         os.makedirs("aug-imgs/step{}/".format(step))
+            #     plt.savefig("aug-imgs/step{}/{}-{}-original.png".format(step,task_idx, j))
+            #     plt.close()
+
+            if aug_type == 'learned':
+                support_augs = self._aug_net(support_augs)
+            elif aug_type == 'identity':
+                support_augs = support_augs
+            elif aug_type == 'random_crop_flip':
+                image_dim = support_augs.shape[2]
+                random_crop_flip = transforms.Compose([transforms.RandomCrop((image_dim,image_dim), padding=8),transforms.RandomHorizontalFlip()])
+                support_augs = random_crop_flip(support_augs)
+            elif aug_type == 'AutoAugment':
+                if self.dataset == 'cifar10':
+                    augmenter = transforms.AutoAugment(transforms.AutoAugmentPolicy.CIFAR10)
+                elif self.dataset == 'imagenet':
+                    augmenter = transforms.AutoAugment(transforms.AutoAugmentPolicy.IMAGENET)
+                elif self.dataset == 'omniglot':
+                    # No AutoAugment for omniglot, using SVHN (House Numbers) instead
+                    # There is a bug here, does not always work
+                    augmenter = transforms.AutoAugment(transforms.AutoAugmentPolicy.SVHN)
+                else: 
+                    print("AutoAugment not set up for this dataset, using imagenet")
+                    augmenter = transforms.AutoAugment(transforms.AutoAugmentPolicy.IMAGENET)
+                # Apply AutoAugment
+                # support_augs = augmenter(support_augs)
+            else:
+                raise ValueError ("Not a valid augmentation_type")
+            
+            # if step:
+            #     plt.figure()
+            #     fig, ax = plt.subplots(1,len(support_augs)) 
+            #     for j in range(len(support_augs)): 
+            #         ax[j].imshow((support_augs[j].permute(1,2,0).cpu()\
+            #                     .detach().numpy() *255).astype(np.uint8)) #ax[0+(j//3), j%3]
+            #         ax[j].tick_params(which = 'both', size = 0, labelsize = 0)
+            #         plt.setp(ax[j].spines.values(), alpha = 0)
+            #     if not os.path.exists("aug-imgs/step{}/".format(step)):
+            #         os.makedirs("aug-imgs/step{}/".format(step))
+            #     plt.savefig("aug-imgs/step{}/{}-{}-augmented.png".format(step,task_idx, j))
+            #     plt.close()
+
             task_idx += 1
             # use higher
             inner_opt = torch.optim.SGD(self._inner_net.parameters(), lr=1e-1)
@@ -225,52 +283,6 @@ class MAML:
             with higher.innerloop_ctx(
                 self._inner_net, inner_opt, copy_initial_weights=False
             ) as (fnet, diffopt):
-
-                # does the "augmentation"
-                support_augs = torch.cat([images_support for _ in range(self._num_augs)], dim = 0)
-                labels_augs = torch.cat([labels_support for _ in range(self._num_augs)], dim = 0)
-                
-                # if step:
-                #     plt.figure()
-                #     fig, ax = plt.subplots(1,len(support_augs)) 
-                #     for j in range(len(support_augs)):
-                #         #ax[0+(j//3), j%3]
-                #         ax[j].imshow((support_augs[j].permute(1,2,0).cpu()\
-                #                     .detach().numpy() *255).astype(np.uint8))
-                #         ax[j].tick_params(which = 'both', size = 0, labelsize = 0)
-                #         plt.setp(ax[j].spines.values(), alpha = 0)
-                #     if not os.path.exists("aug-imgs/step{}/".format(step)):
-                #         os.makedirs("aug-imgs/step{}/".format(step))
-                #     plt.savefig("aug-imgs/step{}/{}-{}-original.png".format(step,task_idx, j))
-                #     plt.close()
-
-                if aug_type == 'learned':
-                    support_augs = self._aug_net(support_augs)
-                elif aug_type == 'identity':
-                    support_augs = support_augs
-                elif aug_type == 'random_crop_flip':
-                    image_dim = support_augs.shape[2]
-                    random_crop_flip = transforms.Compose([transforms.RandomCrop((image_dim,image_dim), padding=8),transforms.RandomHorizontalFlip()])
-                    support_augs = random_crop_flip(support_augs)
-                elif aug_type == 'AutoAugment':
-                    augmenter = transforms.AutoAugment(transforms.AutoAugmentPolicy.CIFAR10)
-                    support_augs = augmenter(support_augs)
-                else:
-                    raise ValueError ("Not a valid augmentation_type")
-
-                # if step:
-                #     plt.figure()
-                #     fig, ax = plt.subplots(1,len(support_augs)) 
-                #     for j in range(len(support_augs)): 
-                #         ax[j].imshow((support_augs[j].permute(1,2,0).cpu()\
-                #                     .detach().numpy() *255).astype(np.uint8)) #ax[0+(j//3), j%3]
-                #         ax[j].tick_params(which = 'both', size = 0, labelsize = 0)
-                #         plt.setp(ax[j].spines.values(), alpha = 0)
-                #     if not os.path.exists("aug-imgs/step{}/".format(step)):
-                #         os.makedirs("aug-imgs/step{}/".format(step))
-                #     plt.savefig("aug-imgs/step{}/{}-{}-augmented.png".format(step,task_idx, j))
-                #     plt.close()
-
                 # adapt in inner loop
                 support_accs = []
                 for _ in range(self._num_inner_steps):
@@ -519,7 +531,8 @@ def main(args):
         args.outer_lr,
         args.l2_wd,
         log_dir,
-        args.debug
+        args.debug,
+        args.dataset
     )
 
     if args.checkpoint_step > -1:
@@ -657,3 +670,7 @@ if __name__ == '__main__':
 
     main_args = parser.parse_args()
     main(main_args)
+
+
+## Example Run command 
+# python maml_higher.py --outer_lr 1e-3 --num_augs 1 --num_inner_steps 1 --aug_net_size 1 --l2_wd 1e-4 --dataset imagenet
