@@ -309,8 +309,8 @@ class MAML:
                     qry_loss.backward()
 
                     print(self._aug_net)
-                    print(self._aug_net[0].conv_param.weight)
-                    print(self._aug_net[0].conv_param.weight.grad)
+                    print(self._aug_net[0].conv_param.data)
+                    print(self._aug_net[0].conv_param.grad)
                     sys.exit()
 
             # ********************************************************
