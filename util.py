@@ -106,7 +106,7 @@ class aug_net_block(nn.Module):
                         device=DEVICE
                     ),
                     mean = 0,
-                    std = 1
+                    std = torch.std(x.detach()).item()
         )
         x = F.layer_norm(x, x.shape[1:])
         x, _ = torch.max(x, 0)
