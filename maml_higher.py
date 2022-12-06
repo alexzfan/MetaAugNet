@@ -305,7 +305,7 @@ class MAML:
                     qry_loss = F.cross_entropy(qry_logits, labels_query)
                     accuracy_query_batch.append(util.score(qry_logits, labels_query))
                     qry_loss.backward()
-                    outer_loss_batch.append(qry_loss)
+                    outer_loss_batch.append(qry_loss.detach())
 
                     
 
