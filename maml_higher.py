@@ -304,7 +304,7 @@ class MAML:
                     qry_logits = fnet(images_query)
                     qry_loss = F.cross_entropy(qry_logits, labels_query)
                     accuracy_query_batch.append(util.score(qry_logits, labels_query))
-                    outer_loss_batch.append(qry_loss.detach())              
+                    outer_loss_batch.append(qry_loss)              
 
 
 
