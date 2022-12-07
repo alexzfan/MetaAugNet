@@ -97,7 +97,7 @@ class aug_net_block(nn.Module):
                             device = DEVICE
                         ),
                         mean =0,# 0.000001
-                        std = 0
+                        std = 1e-8
                     ))
             self.conv_bias = nn.Parameter(nn.init.zeros_(
                     torch.empty(
