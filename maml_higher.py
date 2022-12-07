@@ -109,7 +109,7 @@ class MAML:
                 param.requires_grad = False
 
             self.pretrain_model.eval()
-            self.pretrain_model_transform = SqueezeNet1_1_Weights.IMAGENET1K_V1.transforms
+            self.pretrain_model_transform = SqueezeNet1_1_Weights.IMAGENET1K_V1.transforms()
 
             self._inner_net = nn.Sequential(
                 util.mean_pool_along_channel(),
