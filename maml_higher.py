@@ -109,7 +109,8 @@ class MAML:
                 param.requires_grad = False
 
             self.pretrain_model.eval()
-            
+            self.pretrain_model_transform = SqueezeNet1_1_Weights.IMAGENET1K_V1.transforms
+
             self._inner_net = nn.Sequential(
                 util.mean_pool_along_channel(),
                 nn.Linear(512, num_outputs)
@@ -287,7 +288,8 @@ class MAML:
                 support_accs = []
                 for _ in range(self._num_inner_steps):
                     if self.pretrain:
-                        support_pretrained = self.pretrain_model(support_augs)
+                        support_pretrained = self.pretrain_model_transform(support_augs)
+                        support_pretrained = self.pretrain_model(support_pretrained)
                         spt_logits = fnet(support_pretrained)
                         spt_loss = F.cross_entropy(spt_logits, labels_augs)
 
@@ -303,13 +305,15 @@ class MAML:
 
                 # query time
                 if self.pretrain:
-                    support_pretrained = self.pretrain_model(support_augs)
+                    support_pretrained = self.pretrain_model_transform(support_augs)
+                    support_pretrained = self.pretrain_model(support_pretrained)
                     spt_logits = fnet(support_pretrained)
                     support_accs.append(util.score(spt_logits, labels_augs))
                     accuracies_support_batch.append(support_accs)
 
-                    images_query = self.pretrain_model(images_query)
-                    qry_logits = fnet(images_query)
+                    query_pretrained = self.pretrain_model_transform(images_query)
+                    query_pretrained = self.pretrain_model(query_pretrained)
+                    qry_logits = fnet(query_pretrained)
                     qry_loss = F.cross_entropy(qry_logits, labels_query)
                     accuracy_query_batch.append(util.score(qry_logits, labels_query))
                     outer_loss_batch.append(qry_loss.detach())
