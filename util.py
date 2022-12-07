@@ -3,6 +3,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import random
+import math
 
 DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
 
@@ -51,30 +52,61 @@ class aug_net_block(nn.Module):
         in_channel,
         out_channel,
         kernel_size,
-        aug_noise_prob
+        aug_noise_prob,
+        identity_init_off
     ):
         """Inits the augmentation network for MetaAugNet on MAML"""
         super(aug_net_block, self).__init__()
+        
+        if identity_init_off:
+            # Default initialization for conv layer in PyTorch
+            # Uniform with min and max proportional to inverse sqrt of total kernel size
+            n = in_channel
+            n = kernel_size*kernel_size
+            stdv = 1. / math.sqrt(n)
 
-        self.conv_param = nn.Parameter(nn.init.normal_(
-                    torch.empty(
+            self.conv_param = nn.Parameter(nn.init.uniform_(
+                        torch.empty(
+                            out_channel,
+                            in_channel,
+                            kernel_size,
+                            kernel_size,
+                            requires_grad=True,
+                            device = DEVICE
+                        ),
+                        a = -stdv, 
+                        b = stdv
+                    ))
+            self.conv_bias = nn.Parameter(nn.init.uniform_(
+                torch.empty(
                         out_channel,
-                        in_channel,
-                        kernel_size,
-                        kernel_size,
                         requires_grad=True,
                         device = DEVICE
                     ),
-                    mean =0,# 0.000001
-                    std = 1e-8
-                ))
-        self.conv_bias = nn.Parameter(nn.init.zeros_(
+                a = -stdv,
+                b = stdv
+            ))
+        else: 
+            self.conv_param = nn.Parameter(nn.init.normal_(
+                        torch.empty(
+                            out_channel,
+                            in_channel,
+                            kernel_size,
+                            kernel_size,
+                            requires_grad=True,
+                            device = DEVICE
+                        ),
+                        mean =0,# 0.000001
+                        std = 0
+                    ))
+            self.conv_bias = nn.Parameter(nn.init.zeros_(
                     torch.empty(
                         out_channel,
                         requires_grad=True,
                         device = DEVICE
                     )
-                ))
+                ))        
+            
         self.conv_identity_weight = nn.init.dirac_(
             torch.empty(
                 out_channel, 
