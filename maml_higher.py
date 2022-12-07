@@ -299,12 +299,15 @@ class MAML:
 
                         support_accs.append(util.score(spt_logits, labels_augs))
                         diffopt.step(spt_loss)
-                spt_logits = fnet(support_augs)
-                support_accs.append(util.score(spt_logits, labels_augs))
-                accuracies_support_batch.append(support_accs)
+
 
                 # query time
                 if self.pretrain:
+                    support_augs = self.pretrain_model(support_augs)
+                    spt_logits = fnet(support_augs)
+                    support_accs.append(util.score(spt_logits, labels_augs))
+                    accuracies_support_batch.append(support_accs)
+
                     images_query = self.pretrain_model(images_query)
                     qry_logits = fnet(images_query)
                     qry_loss = F.cross_entropy(qry_logits, labels_query)
@@ -313,6 +316,9 @@ class MAML:
 
                     qry_loss.backward()
                 else:
+                    spt_logits = fnet(support_augs)
+                    support_accs.append(util.score(spt_logits, labels_augs))
+                    accuracies_support_batch.append(support_accs)
                     qry_logits = fnet(images_query)
                     qry_loss = F.cross_entropy(qry_logits, labels_query)
                     accuracy_query_batch.append(util.score(qry_logits, labels_query))
