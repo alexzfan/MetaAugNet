@@ -624,14 +624,33 @@ def main(args):
             f'num_support={args.num_support}, '
             f'num_query={args.num_query}'
         )
-        dataloader_test = omniglot.get_omniglot_dataloader(
-            'test',
-            1,
-            args.num_way,
-            args.num_support,
-            args.num_query,
-            NUM_TEST_TASKS
-        )
+        if args.dataset == 'omniglot':
+            dataloader_test = omniglot.get_omniglot_dataloader(
+                'test',
+                1,
+                args.num_way,
+                args.num_support,
+                args.num_query,
+                NUM_TEST_TASKS
+            )
+        elif args.dataset == 'imagenet':
+            dataloader_test = imagenet.get_imagenet_dataloader(
+                'test',
+                1,
+                args.num_way,
+                args.num_support,
+                args.num_query,
+                num_training_tasks
+            )
+        elif args.dataset == "cifar":
+            dataloader_test = cifar.get_cifar_dataloader(
+                'test',
+                1,
+                args.num_way,
+                args.num_support,
+                args.num_query,
+                num_training_tasks
+            )
         maml.test(dataloader_test, args)
 
 
