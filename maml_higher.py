@@ -31,8 +31,8 @@ DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
 SUMMARY_INTERVAL = 2
 SAVE_INTERVAL = 10
 LOG_INTERVAL = 10
-VAL_INTERVAL = LOG_INTERVAL * 1#5
-NUM_TEST_TASKS = 1 #600
+VAL_INTERVAL = LOG_INTERVAL * 5
+NUM_TEST_TASKS = 600
 RESNET_CHANNEL = 3
 INNER_MODEL_SIZE = 4
 
@@ -111,7 +111,8 @@ class MAML:
                 param.requires_grad = False
 
             self.pretrain_model.eval()
-            
+            self.pretrain_model_transform = SqueezeNet1_1_Weights.IMAGENET1K_V1.transforms()
+
             self._inner_net = nn.Sequential(
                 util.mean_pool_along_channel(),
                 nn.Linear(512, num_outputs)
@@ -289,8 +290,9 @@ class MAML:
                 support_accs = []
                 for _ in range(self._num_inner_steps):
                     if self.pretrain:
-                        support_augs = self.pretrain_model(support_augs)
-                        spt_logits = fnet(support_augs)
+                        support_pretrained = self.pretrain_model_transform(support_augs)
+                        support_pretrained = self.pretrain_model(support_pretrained)
+                        spt_logits = fnet(support_pretrained)
                         spt_loss = F.cross_entropy(spt_logits, labels_augs)
 
                         support_accs.append(util.score(spt_logits, labels_augs))
@@ -301,20 +303,29 @@ class MAML:
 
                         support_accs.append(util.score(spt_logits, labels_augs))
                         diffopt.step(spt_loss)
-                spt_logits = fnet(support_augs)
-                support_accs.append(util.score(spt_logits, labels_augs))
-                accuracies_support_batch.append(support_accs)
+
 
                 # query time
                 if self.pretrain:
-                    images_query = self.pretrain_model(images_query)
-                    qry_logits = fnet(images_query)
+                    support_pretrained = self.pretrain_model_transform(support_augs)
+                    support_pretrained = self.pretrain_model(support_pretrained)
+                    spt_logits = fnet(support_pretrained)
+                    support_accs.append(util.score(spt_logits, labels_augs))
+                    accuracies_support_batch.append(support_accs)
+
+                    query_pretrained = self.pretrain_model_transform(images_query)
+                    query_pretrained = self.pretrain_model(query_pretrained)
+                    qry_logits = fnet(query_pretrained)
                     qry_loss = F.cross_entropy(qry_logits, labels_query)
                     accuracy_query_batch.append(util.score(qry_logits, labels_query))
                     outer_loss_batch.append(qry_loss.detach())
 
                     qry_loss.backward()
                 else:
+                    spt_logits = fnet(support_augs)
+                    support_accs.append(util.score(spt_logits, labels_augs))
+                    accuracies_support_batch.append(support_accs)
+
                     qry_logits = fnet(images_query)
                     qry_loss = F.cross_entropy(qry_logits, labels_query)
                     accuracy_query_batch.append(util.score(qry_logits, labels_query))
@@ -628,14 +639,33 @@ def main(args):
             f'num_support={args.num_support}, '
             f'num_query={args.num_query}'
         )
-        dataloader_test = omniglot.get_omniglot_dataloader(
-            'test',
-            1,
-            args.num_way,
-            args.num_support,
-            args.num_query,
-            NUM_TEST_TASKS
-        )
+        if args.dataset == 'omniglot':
+            dataloader_test = omniglot.get_omniglot_dataloader(
+                'test',
+                1,
+                args.num_way,
+                args.num_support,
+                args.num_query,
+                NUM_TEST_TASKS
+            )
+        elif args.dataset == 'imagenet':
+            dataloader_test = imagenet.get_imagenet_dataloader(
+                'test',
+                1,
+                args.num_way,
+                args.num_support,
+                args.num_query,
+                NUM_TEST_TASKS
+            )
+        elif args.dataset == "cifar":
+            dataloader_test = cifar.get_cifar_dataloader(
+                'test',
+                1,
+                args.num_way,
+                args.num_support,
+                args.num_query,
+                NUM_TEST_TASKS
+            )
         maml.test(dataloader_test, args)
 
 

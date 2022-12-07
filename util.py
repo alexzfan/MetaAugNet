@@ -139,7 +139,7 @@ class aug_net_block(nn.Module):
                         device=DEVICE
                     ),
                     mean = 0,
-                    std = torch.std(x.detach()).item()
+                    std = 0.1*torch.std(x.detach()).item()
         )
         x = F.layer_norm(x, x.shape[1:])
         x = torch.clamp(x, min=0)
