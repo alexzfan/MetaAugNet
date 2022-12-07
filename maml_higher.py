@@ -640,7 +640,7 @@ def main(args):
                 args.num_way,
                 args.num_support,
                 args.num_query,
-                num_training_tasks
+                NUM_TEST_TASKS
             )
         elif args.dataset == "cifar":
             dataloader_test = cifar.get_cifar_dataloader(
@@ -649,7 +649,7 @@ def main(args):
                 args.num_way,
                 args.num_support,
                 args.num_query,
-                num_training_tasks
+                NUM_TEST_TASKS
             )
         maml.test(dataloader_test, args)
 
