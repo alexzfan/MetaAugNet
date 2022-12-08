@@ -53,6 +53,7 @@ class aug_net_block(nn.Module):
         out_channel,
         kernel_size,
         aug_noise_prob,
+        num_augs,
         identity_init_off
     ):
         """Inits the augmentation network for MetaAugNet on MAML"""
@@ -119,6 +120,7 @@ class aug_net_block(nn.Module):
             )
 
         self.aug_noise_prob = aug_noise_prob
+        self.num_augs = num_augs
 
     def forward(self, x):
         """x: input image (N*S, C, H, W)"""
@@ -130,17 +132,38 @@ class aug_net_block(nn.Module):
             stride = 1,
             padding = 'same'
         )
-        if random.uniform(0,1) < self.aug_noise_prob:
+
+        B, C, H, W = x.size()
+        tB = int(B / self.num_augs)
+        # new way of generating augs
+        noise = torch.cat([nn.init.normal_(torch.empty((tB, C, H, W), 
+                                             requires_grad = False, 
+                                             device = DEVICE), 
+                                 mean = 0, 
+                                 std = 0.1*torch.std(x.detach()).item()
+                                )
+                    for _ in range(self.num_augs) 
+                    if random.uniform(0,1) < self.aug_noise_prob
+                    else nn.init.zeros_like(torch.empty((tB, C, H, W), 
+                                             requires_grad = False, 
+                                             device = DEVICE)
+                                )
+                ], 
+                dim = 0
+                )
+        assert noise.size() == x.size()
+        x = x + noise
+        # if random.uniform(0,1) < self.aug_noise_prob:
                 
-                x = x + nn.init.normal_(
-                    torch.empty(
-                        x.size(),
-                        requires_grad=False,
-                        device=DEVICE
-                    ),
-                    mean = 0,
-                    std = 0.1*torch.std(x.detach()).item()
-        )
+        #         x = x + nn.init.normal_(
+        #             torch.empty(
+        #                 x.size(),
+        #                 requires_grad=False,
+        #                 device=DEVICE
+        #             ),
+        #             mean = 0,
+        #             std = 0.1*torch.std(x.detach()).item()
+        # )
         x = F.layer_norm(x, x.shape[1:])
         x = torch.clamp(x, min=0)
         return x + res
