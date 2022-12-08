@@ -284,7 +284,7 @@ class MAML:
             inner_opt = torch.optim.SGD(self._inner_net.parameters(), lr=1e-1)
 
             with higher.innerloop_ctx(
-                self._inner_net, inner_opt, copy_initial_weights=False
+                self._inner_net, inner_opt, copy_initial_weights= not train, track_higher_grads = train,
             ) as (fnet, diffopt):
                 # adapt in inner loop
                 support_accs = []
@@ -318,7 +318,7 @@ class MAML:
                     qry_logits = fnet(query_pretrained)
                     qry_loss = F.cross_entropy(qry_logits, labels_query)
                     accuracy_query_batch.append(util.score(qry_logits, labels_query))
-                    
+
                     if train:
                         qry_loss.backward()
 
