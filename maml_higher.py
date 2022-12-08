@@ -57,7 +57,8 @@ class MAML:
             l2_wd,
             log_dir,
             debug,
-            dataset
+            dataset,
+            identity_init_off
     ):
         """Inits MAML.
 
@@ -89,14 +90,15 @@ class MAML:
         self._aug_net_size = aug_net_size
         self._aug_noise_prob = aug_noise_prob
         self.train_aug_type = train_aug_type
-        
+        self.identity_init_off = identity_init_off
+
         self._aug_net = nn.Sequential()
         in_channel = self.num_input_channels
         for i in range(self._aug_net_size):
             if i == self._aug_net_size - 1:
-                self._aug_net.append(util.aug_net_block(in_channel, self.num_input_channels, KERNEL_SIZE, self._aug_noise_prob))
+                self._aug_net.append(util.aug_net_block(in_channel, self.num_input_channels, KERNEL_SIZE, self._aug_noise_prob, self.identity_init_off))
             else:
-                self._aug_net.append(util.aug_net_block(in_channel, NUM_HIDDEN_CHANNELS, KERNEL_SIZE, self._aug_noise_prob))
+                self._aug_net.append(util.aug_net_block(in_channel, NUM_HIDDEN_CHANNELS, KERNEL_SIZE, self._aug_noise_prob, self.identity_init_off))
                 in_channel = NUM_HIDDEN_CHANNELS
         self._aug_net = self._aug_net.to(DEVICE)
 
@@ -357,6 +359,7 @@ class MAML:
             writer (SummaryWriter): TensorBoard logger
         """
         print(f'Starting training at iteration {self._start_train_step}.')
+        history_accuracy_post_adapt_query = []
         for i_step, task_batch in enumerate(
                 dataloader_train,
                 start=self._start_train_step
@@ -419,6 +422,10 @@ class MAML:
                 accuracy_post_adapt_query = np.mean(
                     accuracies_post_adapt_query
                 )
+                history_accuracy_post_adapt_query.append(accuracy_post_adapt_query)
+                avg_num = np.min((len(history_accuracy_post_adapt_query),5))
+                avg5_accuracy_post_adapt_query = np.mean(history_accuracy_post_adapt_query[-avg_num:])
+                
                 print(
                     f'Validation: '
                     f'loss: {loss:.3f}, '
@@ -427,7 +434,9 @@ class MAML:
                     f'post-adaptation support accuracy: '
                     f'{accuracy_post_adapt_support:.3f}, '
                     f'post-adaptation query accuracy: '
-                    f'{accuracy_post_adapt_query:.3f}'
+                    f'{accuracy_post_adapt_query:.3f}, '
+                    f'avg5_post-adaptation query accuracy: '
+                    f'{avg5_accuracy_post_adapt_query:.3f}'
                 )
                 writer.add_scalar('loss/val', loss, i_step)
                 writer.add_scalar(
@@ -443,6 +452,11 @@ class MAML:
                 writer.add_scalar(
                     'val_accuracy/post_adapt_query',
                     accuracy_post_adapt_query,
+                    i_step
+                )
+                writer.add_scalar(
+                    'avg5_val_accuracy/post_adapt_query',
+                    avg5_accuracy_post_adapt_query,
                     i_step
                 )
 
@@ -545,7 +559,8 @@ def main(args):
         args.l2_wd,
         log_dir,
         args.debug,
-        args.dataset
+        args.dataset,
+        args.identity_init_off
     )
 
     if args.checkpoint_step > -1:
@@ -676,7 +691,7 @@ if __name__ == '__main__':
                         help='how many conv layers in augmentation network')       
     parser.add_argument('--num_augs', type=int, default=1,
                         help='how many sets of augmentations')
-    parser.add_argument('--aug_noise_prob', type=float, default=0.4,
+    parser.add_argument('--aug_noise_prob', type=float, default=0.1,
                         help='likelihood to inject noise in augmentation layer')                          
     parser.add_argument('--inner_lr', type=float, default=0.4,
                         help='inner-loop learning rate initialization')
@@ -699,6 +714,8 @@ if __name__ == '__main__':
                         help='debug by reducing to base maml')  
     parser.add_argument('--train_aug_type', default="learned",
                         help='specity augmentation type for training')  
+    parser.add_argument('--identity_init_off', default=False, action='store_true',
+                        help='True for MetaAugNet identity initialization, false for default init')  
 
     main_args = parser.parse_args()
     main(main_args)
