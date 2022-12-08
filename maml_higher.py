@@ -488,8 +488,8 @@ class MAML:
         )
         if os.path.isfile(target_path):
             state = torch.load(target_path)
-            # self._meta_parameters = state['meta_parameters']
-            # self._inner_lrs = state['inner_lrs']
+            self._aug_net.load_state_dict(state['aug_net'])
+            self._inner_net.load_state_dict(state['inner_net'])
             self._optimizer.load_state_dict(state['optimizer_state_dict'])
             self._start_train_step = checkpoint_step + 1
             print(f'Loaded checkpoint iteration {checkpoint_step}.')
@@ -506,7 +506,9 @@ class MAML:
         """
         optimizer_state_dict = self._optimizer.state_dict()
         torch.save(
-            dict(optimizer_state_dict=optimizer_state_dict),
+            dict(aug_net = self._aug_net.state_dict(),
+                inner_net = self._inner_net.state_dict(),
+                optimizer_state_dict=optimizer_state_dict),
             f'{os.path.join(self._log_dir, "state")}{checkpoint_step}.pt'
         )
         print('Saved checkpoint.')
