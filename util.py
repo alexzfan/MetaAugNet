@@ -141,10 +141,7 @@ class aug_net_block(nn.Module):
                                              device = DEVICE), 
                                  mean = 0, 
                                  std = 0.1*torch.std(x.detach()).item()
-                                ) \
-                    for _ in range(self.num_augs) \
-                    if random.uniform(0,1) < self.aug_noise_prob \
-                    else nn.init.zeros_like(torch.empty((tB, C, H, W), 
+                                ) for _ in range(self.num_augs) if random.uniform(0,1) < self.aug_noise_prob else nn.init.zeros_like(torch.empty((tB, C, H, W), 
                                              requires_grad = False, 
                                              device = DEVICE)
                                 )
