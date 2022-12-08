@@ -89,6 +89,7 @@ class MAML:
         # construct feature extractor
         self._aug_net_size = aug_net_size
         self._aug_noise_prob = aug_noise_prob
+        self._num_augs = num_augs
         self.train_aug_type = train_aug_type
         self.identity_init_off = identity_init_off
 
@@ -96,9 +97,9 @@ class MAML:
         in_channel = self.num_input_channels
         for i in range(self._aug_net_size):
             if i == self._aug_net_size - 1:
-                self._aug_net.append(util.aug_net_block(in_channel, self.num_input_channels, KERNEL_SIZE, self._aug_noise_prob, self.identity_init_off))
+                self._aug_net.append(util.aug_net_block(in_channel, self.num_input_channels, KERNEL_SIZE, self._aug_noise_prob, self._num_augs, self.identity_init_off))
             else:
-                self._aug_net.append(util.aug_net_block(in_channel, NUM_HIDDEN_CHANNELS, KERNEL_SIZE, self._aug_noise_prob, self.identity_init_off))
+                self._aug_net.append(util.aug_net_block(in_channel, NUM_HIDDEN_CHANNELS, KERNEL_SIZE, self._aug_noise_prob, self._num_augs, self.identity_init_off))
                 in_channel = NUM_HIDDEN_CHANNELS
         self._aug_net = self._aug_net.to(DEVICE)
 
@@ -135,7 +136,6 @@ class MAML:
             ).to(DEVICE)
             
         self._num_inner_steps = num_inner_steps
-        self._num_augs = num_augs
         # self._inner_lrs = {
         #     k: torch.tensor(inner_lr, requires_grad=learn_inner_lrs)
         #     for k in self._inner_params.keys()
@@ -318,9 +318,13 @@ class MAML:
                     qry_logits = fnet(query_pretrained)
                     qry_loss = F.cross_entropy(qry_logits, labels_query)
                     accuracy_query_batch.append(util.score(qry_logits, labels_query))
+                    
+                    if train:
+                        qry_loss.backward()
+
                     outer_loss_batch.append(qry_loss.detach())
 
-                    qry_loss.backward()
+
                 else:
                     spt_logits = fnet(support_augs)
                     support_accs.append(util.score(spt_logits, labels_augs))
@@ -330,7 +334,8 @@ class MAML:
                     qry_loss = F.cross_entropy(qry_logits, labels_query)
                     accuracy_query_batch.append(util.score(qry_logits, labels_query))
 
-                    qry_loss.backward()
+                    if train:
+                        qry_loss.backward()
                     outer_loss_batch.append(qry_loss.detach())              
 
 
