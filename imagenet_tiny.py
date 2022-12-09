@@ -85,7 +85,7 @@ class ImagenetDataset(dataset.Dataset):
         )
 
         # shuffle images
-        # np.random.default_rng(0).shuffle(self._image_folders)
+        np.random.default_rng(0).shuffle(self._image_folders)
 
         # check problem arguments
         assert num_support + num_query <= NUM_SAMPLES_PER_CLASS
