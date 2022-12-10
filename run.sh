@@ -30,5 +30,9 @@ do
     python maml_higher.py --outer_lr 1e-3 --num_augs $num_augs --num_inner_steps 1 --aug_net_size 1 --l2_wd 1e-4 --dataset imagenet --num_train_iterations 5000 --aug_noise_prob 0.1 --train_aug_type AutoAugment
 done
 
-
+echo TEST AUGMENTATION NETWORK SIZE 
+for aug_set_size in 1 3 5 10
+do
+    python maml_higher.py --outer_lr 1e-3 --num_augs 3 --num_inner_steps 1 --aug_net_size $aug_net_size --l2_wd 1e-4 --dataset imagenet --num_train_iterations 5000 --train_aug_type learned --aug_noise_prob 0.1
+done
 
