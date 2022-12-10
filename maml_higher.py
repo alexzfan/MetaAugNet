@@ -724,7 +724,7 @@ if __name__ == '__main__':
                         help='specity augmentation type for training')  
     parser.add_argument('--identity_init_off', default=False, action='store_true',
                         help='True for MetaAugNet identity initialization, false for default init')  
-    parser.add_argument('--dataset_shuffle_seed', type=int, default=None,
+    parser.add_argument('--dataset_shuffle_seed', type=int, default=0,
                         help='seed for shuffling dataset')
     main_args = parser.parse_args()
     main(main_args)
