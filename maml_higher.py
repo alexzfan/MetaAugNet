@@ -607,7 +607,8 @@ def main(args):
                 args.num_way,
                 args.num_support,
                 args.num_query,
-                num_training_tasks
+                num_training_tasks,
+                args.dataset_shuffle_seed
             )
             dataloader_val = imagenet.get_imagenet_dataloader(
                 'val',
@@ -615,7 +616,8 @@ def main(args):
                 args.num_way,
                 args.num_support,
                 args.num_query,
-                args.batch_size * 4
+                args.batch_size * 4,
+                args.dataset_shuffle_seed
             )
         elif args.dataset == "cifar":
             dataloader_train = cifar.get_cifar_dataloader(
@@ -662,7 +664,8 @@ def main(args):
                 args.num_way,
                 args.num_support,
                 args.num_query,
-                NUM_TEST_TASKS
+                NUM_TEST_TASKS,
+                args.dataset_shuffle_seed
             )
         elif args.dataset == "cifar":
             dataloader_test = cifar.get_cifar_dataloader(
@@ -721,7 +724,8 @@ if __name__ == '__main__':
                         help='specity augmentation type for training')  
     parser.add_argument('--identity_init_off', default=False, action='store_true',
                         help='True for MetaAugNet identity initialization, false for default init')  
-
+    parser.add_argument('--dataset_shuffle_seed', type=int, default=None,
+                        help='seed for shuffling dataset')
     main_args = parser.parse_args()
     main(main_args)
 

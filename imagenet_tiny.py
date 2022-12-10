@@ -57,7 +57,7 @@ class ImagenetDataset(dataset.Dataset):
 
     _MAIN_IMAGENET_PATH = './ILSVRC/Data/CLS-LOC/train'
     _MINY_IMAGENET_PATH = './mini-imagenet-tools/processed_images'
-    def __init__(self, num_support, num_query):
+    def __init__(self, num_support, num_query, dataset_shuffle_seed):
         """Inits ImagenetDataset.
 
         Args:
@@ -85,7 +85,8 @@ class ImagenetDataset(dataset.Dataset):
         )
 
         # shuffle images
-        # np.random.default_rng(0).shuffle(self._image_folders)
+        if dataset_shuffle_seed:
+            np.random.default_rng(dataset_shuffle_seed).shuffle(self._image_folders)
 
         # check problem arguments
         assert num_support + num_query <= NUM_SAMPLES_PER_CLASS
@@ -180,7 +181,8 @@ def get_imagenet_dataloader(
         num_way,
         num_support,
         num_query,
-        num_tasks_per_epoch
+        num_tasks_per_epoch,
+        dataset_shuffle_seed
 ):
     """Returns a dataloader.DataLoader for Omniglot.
 
@@ -210,7 +212,7 @@ def get_imagenet_dataloader(
         raise ValueError
 
     return dataloader.DataLoader(
-        dataset=ImagenetDataset(num_support, num_query),
+        dataset=ImagenetDataset(num_support, num_query, dataset_shuffle_seed),
         batch_size=batch_size,
         sampler=ImagenetSampler(split_idxs, num_way, num_tasks_per_epoch),
         num_workers=8,
