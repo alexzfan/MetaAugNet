@@ -537,12 +537,12 @@ def main(args):
     # Initialize logging (Tensorboard and Wandb)
     log_dir = args.log_dir
     if log_dir is None:
-        log_dir = f'./logs/maml/{args.dataset}.train_aug_type:{args.train_aug_type}.aut_net_size:{args.aug_net_size}.pretrain:{args.pretrain}.num_augs{args.num_augs}.aug_noise_prob{args.aug_noise_prob}.l2_wd{args.l2_wd}.way:{args.num_way}.support:{args.num_support}.query:{args.num_query}.inner_steps:{args.num_inner_steps}.inner_lr:{args.inner_lr}.learn_inner_lrs:{args.learn_inner_lrs}.outer_lr:{args.outer_lr}.batch_size:{args.batch_size}' # pylint: disable=line-too-long
+        log_dir = f'./logs/final_experiments/{args.dataset}.train_aug_type:{args.train_aug_type}.aug_net_size:{args.aug_net_size}.num_augs{args.num_augs}.aug_noise_prob{args.aug_noise_prob}.identity_init_off{args.identity_init_off}.dset_shuffle{args.dataset_shuffle_seed}.l2_wd{args.l2_wd}.way:{args.num_way}.support:{args.num_support}.query:{args.num_query}.inner_steps:{args.num_inner_steps}.inner_lr:{args.inner_lr}.learn_inner_lrs:{args.learn_inner_lrs}.outer_lr:{args.outer_lr}.batch_size:{args.batch_size}' # pylint: disable=line-too-long
     print(f'log_dir: {log_dir}')
     wandb_name = log_dir.split('/')[-1]
     if args.test : 
         wandb_name = "eval_" + wandb_name
-    wandb.init(project='meta-aug-net', entity='alex-yoko-brian', config=args, name=wandb_name, sync_tensorboard=True)
+    wandb.init(project="test-project", entity="cs330_team", config=args, name=wandb_name, sync_tensorboard=True)
     writer = tensorboard.SummaryWriter(log_dir=log_dir)
 
     if args.dataset == 'omniglot':
