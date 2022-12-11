@@ -85,9 +85,7 @@ class ImagenetDataset(dataset.Dataset):
         )
 
         # shuffle images
-        print(dataset_shuffle_seed)
-        if dataset_shuffle_seed:
-            print("in if statement")
+        if dataset_shuffle_seed > -1:
             print("shuffling with dset_shuffle_seed: {}".format(dataset_shuffle_seed))
             np.random.default_rng(dataset_shuffle_seed).shuffle(self._image_folders)
 
