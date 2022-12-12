@@ -474,7 +474,7 @@ class MAML:
         Args:
             dataloader_test (DataLoader): loader for test tasks
         """
-        for aug_type in ['learned','random_crop_flip','AutoAugment']:
+        for aug_type in ['learned','identity','random_crop_flip','AutoAugment']:
             accuracies = []
             for task_batch in dataloader_test:
                 _, _, accuracy_query = self._outer_step(task_batch, train=False, aug_type=aug_type)
